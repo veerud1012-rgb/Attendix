@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Clock, Shield, Sun, Moon, Calendar, UserCheck } from "lucide-react";
+import logo from "../assets/logo.png";
 
 interface HeaderProps {
   darkMode: boolean;
@@ -43,7 +44,7 @@ export default function Header({ darkMode, setDarkMode, userEmail }: HeaderProps
           <div className="relative">
             <div className="absolute inset-0 bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 rounded-xl blur-md opacity-75 animate-pulse-slow"></div>
             <div className="relative rounded-xl border border-white/10 shadow-[0_0_18px_rgba(109,40,255,0.6)] overflow-hidden bg-white">
-              <img id="header-logo-icon" src="/logo.png" alt="Logo" className="w-10 h-10 object-contain p-1" />
+              <img id="header-logo-icon" src={logo} alt="Logo" className="w-10 h-10 object-contain p-1" />
             </div>
           </div>
           <div>

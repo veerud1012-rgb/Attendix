@@ -12,6 +12,7 @@ import { dbStore, processAttendance, formatCurrency } from "./dbStore";
 import { Employee, Attendance, AttendanceWithEmployee, ActivityLog } from "./types";
 
 import Header from "./components/Header";
+import logo from "./assets/logo.png";
 import DashboardStats from "./components/DashboardStats";
 import AnalyticsCharts from "./components/AnalyticsCharts";
 import EmployeeModal from "./components/EmployeeModal";
@@ -368,7 +369,7 @@ export default function App() {
         <div className="flex flex-col items-center gap-6 w-full">
           {/* Logo Group */}
           <div className="w-10 h-10 rounded-2xl bg-white flex items-center justify-center shadow-[0_0_15px_rgba(109,40,255,0.4)] overflow-hidden">
-            <img src="/logo.png" alt="Logo" className="w-8 h-8 object-contain" />
+            <img src={logo} alt="Logo" className="w-8 h-8 object-contain" />
           </div>
           
           {/* Nav Items */}
@@ -846,7 +847,7 @@ export default function App() {
                                         className={`font-bold hover:underline text-left transition-all ${
                                           darkMode ? "text-white hover:text-[#2bdfff]" : "text-stone-900 hover:text-indigo-600"
                                         }`}
-                                        style={{ fontSize: index === 0 ? '17px' : '14px' }}
+                                        style={{ fontSize: '17px' }}
                                       >
                                         {rec.employee_name}
                                       </button>
@@ -856,7 +857,10 @@ export default function App() {
                                   <td className={`py-3 px-3 font-semibold font-mono whitespace-nowrap ${darkMode ? "text-[#b9c2d9]" : "text-slate-700"}`} style={{ fontSize: '14px' }}>
                                     <div>{rec.date.split('-').reverse().join('-')}</div>
                                     {(rec.updated_at || rec.created_at) && (
-                                      <div className={`text-[10px] mt-0.5 ${darkMode ? "text-[#8e97af]" : "text-slate-500"}`}>
+                                      <div 
+                                        className={`text-[10px] mt-0.5 ${darkMode ? "text-[#8e97af]" : "text-slate-500"}`}
+                                        style={{ fontSize: '15px' }}
+                                      >
                                         {new Date(rec.updated_at || rec.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                       </div>
                                     )}
@@ -870,7 +874,7 @@ export default function App() {
                                         : darkMode
                                           ? "bg-rose-500/10 text-[#ff4a7a] border-rose-500/30 shadow-[0_0_10px_rgba(255,46,99,0.2)]"
                                           : "bg-rose-50 text-rose-700 border-rose-200"
-                                    }`} style={{ fontSize: '13px' }}>
+                                    }`} style={{ fontSize: '12px' }}>
                                       {rec.status}
                                     </span>
                                   </td>
@@ -891,7 +895,7 @@ export default function App() {
                                             ? "bg-[#1e293b] border-slate-700 text-[#c084fc] focus:border-[#c084fc]" 
                                             : "bg-white border-slate-200 text-purple-700 focus:border-purple-500"
                                         }`}
-                                        style={{ fontSize: index === 0 ? '15px' : undefined }}
+                                        style={{ fontSize: '15px' }}
                                       />
                                       <span className="text-[#8e97af] font-medium text-xs">=</span>
                                       <input 
@@ -905,7 +909,7 @@ export default function App() {
                                             ? "bg-[#1e293b] border-slate-700 text-[#b9c2d9] focus:border-[#b9c2d9]" 
                                             : "bg-white border-slate-200 text-slate-700 focus:border-slate-400"
                                         }`}
-                                        style={{ fontSize: index === 0 ? '15px' : undefined }}
+                                        style={{ fontSize: '15px' }}
                                       />
                                     </div>
                                   </td>
@@ -927,7 +931,7 @@ export default function App() {
                                             ? "bg-emerald-500/10 text-[#3cffb6] border border-emerald-500/20 hover:bg-emerald-500/20 hover:shadow-[0_0_12px_rgba(0,212,138,0.3)]"
                                             : "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
                                         }`}
-                                        style={{ fontSize: index === 0 ? '12px' : undefined }}
+                                        style={{ fontSize: '12px' }}
                                       >
                                         Present
                                       </button>
@@ -938,7 +942,7 @@ export default function App() {
                                             ? "bg-rose-500/10 text-[#ff4a7a] border border-rose-500/20 hover:bg-rose-500/20 hover:shadow-[0_0_12px_rgba(255,46,99,0.3)]"
                                             : "bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100"
                                         }`}
-                                        style={{ fontSize: index === 0 ? '12px' : undefined }}
+                                        style={{ fontSize: '12px' }}
                                       >
                                         Absent
                                       </button>
@@ -956,13 +960,13 @@ export default function App() {
                                         style={{ 
                                           width: '26px', 
                                           height: '26px', 
-                                          fontSize: index === 0 ? '12px' : undefined 
+                                          fontSize: '12px' 
                                         }}
                                         title="Edit Attendance & Overtime"
                                       >
                                         <Edit 
                                           className="w-3.5 h-3.5" 
-                                          style={{ fontSize: index === 0 ? '12px' : undefined }}
+                                          style={{ fontSize: '12px' }}
                                         />
                                       </button>
                                       <button
