@@ -1,0 +1,8 @@
+{
+  "name": "ATTENDIX",
+  "description": "A premium Attendance & Payroll Management Web Application with a luxurious SaaS-style UI/UX, automated salary tracking, overtime calculation, and dynamic analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
