@@ -5,11 +5,19 @@ import {
   Trash2, RefreshCw, Eye, BookOpen, HelpCircle, Activity,
   Info, CheckCircle, Sliders, CalendarClock,
   LayoutGrid, Grid, Briefcase, LineChart, FileText, Settings, LogOut, FileCheck,
-  CalendarDays, Edit
+  CalendarDays, Edit, Check, X, User as UserIcon, Mail, Lock
 } from "lucide-react";
 
 import { dbStore, processAttendance, formatCurrency } from "./dbStore";
 import { Employee, Attendance, AttendanceWithEmployee, ActivityLog } from "./types";
+import { onAuthStateChanged, User, signOut } from "firebase/auth";
+import { auth } from "./firebase";
+import { 
+  fetchUserEmployees, fetchUserAttendance, fetchUserLogs,
+  saveUserEmployee, deleteUserEmployee, saveUserAttendance,
+  deleteUserAttendance, saveUserLog, clearUserLogs,
+  clearUserAttendance, clearUserEmployees, validateFirestoreConnection
+} from "./firebaseDb";
 
 import Header from "./components/Header";
 import logo from "./assets/logo.png";
@@ -20,6 +28,8 @@ import AttendanceModal from "./components/AttendanceModal";
 import EmployeeProfileView from "./components/EmployeeProfileView";
 import ReportsSection from "./components/ReportsSection";
 import AttendanceHistory from "./components/AttendanceHistory";
+import AuthModal from "./components/AuthModal";
+import AuthPage from "./components/AuthPage";
 
 const avatarColors = [
   "bg-indigo-500",
@@ -41,7 +51,7 @@ export default function App() {
   const [logs, setLogs] = useState<ActivityLog[]>([]);
 
   // Navigation and active view states
-  const [activeTab, setActiveTab] = useState<"operations" | "reports" | "analytics" | "history">("operations");
+  const [activeTab, setActiveTab] = useState<"operations" | "reports" | "analytics" | "history" | "profile" | "auth">("operations");
   const [subTab, setSubTab] = useState<"attendance" | "employees">("attendance");
   const [selectedEmployeeProfile, setSelectedEmployeeProfile] = useState<Employee | null>(null);
 
@@ -56,18 +66,58 @@ export default function App() {
   // Global Search
   const [searchQuery, setSearchQuery] = useState("");
   
+  // Bulk Selection State
+  const [selectedAttendanceIds, setSelectedAttendanceIds] = useState<string[]>([]);
+
+  // Reset bulk selection on navigation/search change
+  useEffect(() => {
+    setSelectedAttendanceIds([]);
+  }, [activeTab, subTab, searchQuery]);
+  
   // Doc accordion state
   const [isDocOpen, setIsDocOpen] = useState(false);
 
-  // User details
-  const userEmail = "veer.ud.1012@gmail.com";
+  // Auth States
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isDbLoading, setIsDbLoading] = useState<boolean>(false);
 
-  // Initialize DB on mount
+  // Monitor auth state changes
   useEffect(() => {
-    setEmployees(dbStore.getEmployees());
-    setAttendance(dbStore.getAttendance());
-    setLogs(dbStore.getLogs());
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+    });
+    return () => unsubscribe();
   }, []);
+
+  // Initialize DB and connection validation
+  useEffect(() => {
+    validateFirestoreConnection();
+  }, []);
+
+  useEffect(() => {
+    async function loadData() {
+      if (currentUser) {
+        setIsDbLoading(true);
+        try {
+          const emps = await fetchUserEmployees(currentUser.uid);
+          const atts = await fetchUserAttendance(currentUser.uid);
+          const lgs = await fetchUserLogs(currentUser.uid);
+          setEmployees(emps);
+          setAttendance(atts);
+          setLogs(lgs);
+        } catch (err) {
+          console.error("Failed to load user data from Firestore:", err);
+        } finally {
+          setIsDbLoading(false);
+        }
+      } else {
+        setEmployees(dbStore.getEmployees());
+        setAttendance(dbStore.getAttendance());
+        setLogs(dbStore.getLogs());
+      }
+    }
+    loadData();
+  }, [currentUser]);
 
   // Synchronize Dark Mode class to document body
   useEffect(() => {
@@ -121,32 +171,58 @@ export default function App() {
     });
   }, [employees, searchQuery]);
 
+  // Helper to record activity log locally or in Firestore
+  const recordLog = async (action: string, details: string, type: ActivityLog["type"] = "info") => {
+    const newLog: ActivityLog = {
+      id: "LOG-" + Date.now().toString().slice(-6),
+      timestamp: new Date().toISOString(),
+      action,
+      details,
+      type,
+    };
+    if (currentUser) {
+      try {
+        await saveUserLog(currentUser.uid, newLog);
+        const freshLogs = await fetchUserLogs(currentUser.uid);
+        setLogs(freshLogs);
+      } catch (e) {
+        console.error("Failed to write activity log to Firestore", e);
+      }
+    } else {
+      dbStore.addLog(action, details, type);
+      setLogs(dbStore.getLogs());
+    }
+  };
+
   // Save new or updated employee profile
-  const handleSaveEmployee = (newEmp: Omit<Employee, "employee_id" | "avatar_color" | "created_at">) => {
+  const handleSaveEmployee = async (newEmp: Omit<Employee, "employee_id" | "avatar_color" | "created_at">) => {
     if (editingEmployee) {
-      const updatedEmployees = employees.map((emp) => {
-        if (emp.employee_id === editingEmployee.employee_id) {
-          return {
-            ...emp,
-            ...newEmp,
-          };
-        }
-        return emp;
-      });
+      const updatedEmp: Employee = {
+        ...editingEmployee,
+        ...newEmp,
+      };
+      const updatedEmployees = employees.map((emp) =>
+        emp.employee_id === editingEmployee.employee_id ? updatedEmp : emp
+      );
       setEmployees(updatedEmployees);
-      dbStore.saveEmployees(updatedEmployees);
+
+      if (currentUser) {
+        try {
+          await saveUserEmployee(currentUser.uid, updatedEmp);
+        } catch (e) {
+          console.error("Failed to update employee in Firestore", e);
+        }
+      } else {
+        dbStore.saveEmployees(updatedEmployees);
+      }
 
       if (selectedEmployeeProfile && selectedEmployeeProfile.employee_id === editingEmployee.employee_id) {
-        setSelectedEmployeeProfile({
-          ...selectedEmployeeProfile,
-          ...newEmp,
-        });
+        setSelectedEmployeeProfile(updatedEmp);
       }
 
       // Record Action Log
       const logMsg = `Updated Profile [${editingEmployee.employee_id}] for ${newEmp.employee_name}.`;
-      dbStore.addLog("Profile Updated", logMsg, "info");
-      setLogs(dbStore.getLogs());
+      await recordLog("Profile Updated", logMsg, "info");
       setEditingEmployee(null);
     } else {
       // Generate unique EMP-ID
@@ -165,34 +241,48 @@ export default function App() {
 
       const updatedEmployees = [...employees, finalEmployee];
       setEmployees(updatedEmployees);
-      dbStore.saveEmployees(updatedEmployees);
+
+      if (currentUser) {
+        try {
+          await saveUserEmployee(currentUser.uid, finalEmployee);
+        } catch (e) {
+          console.error("Failed to save new employee to Firestore", e);
+        }
+      } else {
+        dbStore.saveEmployees(updatedEmployees);
+      }
 
       // Record Action Log
       const logMsg = `Registered Profile [${empId}] for ${newEmp.employee_name}. Monthly Salary: ${formatCurrency(newEmp.monthly_salary)}`;
-      dbStore.addLog("Profile Enrolled", logMsg, "success");
-      setLogs(dbStore.getLogs());
+      await recordLog("Profile Enrolled", logMsg, "success");
     }
   };
 
   // Save or update daily attendance record
-  const handleSaveAttendance = (newAtt: Omit<Attendance, "attendance_id" | "created_at">) => {
+  const handleSaveAttendance = async (newAtt: Omit<Attendance, "attendance_id" | "created_at">) => {
     if (editingAttendanceRecord) {
-      const updatedAttendance = attendance.map((att) => {
-        if (att.attendance_id === editingAttendanceRecord.attendance_id) {
-          return {
-            ...att,
-            ...newAtt,
-            updated_at: new Date().toISOString(),
-          };
-        }
-        return att;
-      });
+      const updatedAtt: Attendance = {
+        ...editingAttendanceRecord,
+        ...newAtt,
+        updated_at: new Date().toISOString(),
+      };
+      const updatedAttendance = attendance.map((att) =>
+        att.attendance_id === editingAttendanceRecord.attendance_id ? updatedAtt : att
+      );
       setAttendance(updatedAttendance);
-      dbStore.saveAttendance(updatedAttendance);
+
+      if (currentUser) {
+        try {
+          await saveUserAttendance(currentUser.uid, updatedAtt);
+        } catch (e) {
+          console.error("Failed to update attendance in Firestore", e);
+        }
+      } else {
+        dbStore.saveAttendance(updatedAttendance);
+      }
 
       const empName = employees.find((e) => e.employee_id === newAtt.employee_id)?.employee_name || "Employee";
-      dbStore.addLog("Attendance Updated", `Updated attendance & OT log for ${empName} on ${newAtt.date}.`, "info");
-      setLogs(dbStore.getLogs());
+      await recordLog("Attendance Updated", `Updated attendance & OT log for ${empName} on ${newAtt.date}.`, "info");
       setEditingAttendanceRecord(null);
     } else {
       const randomNum = Math.floor(100 + Math.random() * 900);
@@ -207,42 +297,91 @@ export default function App() {
 
       const updatedAttendance = [...attendance, finalAttendance];
       setAttendance(updatedAttendance);
-      dbStore.saveAttendance(updatedAttendance);
+
+      if (currentUser) {
+        try {
+          await saveUserAttendance(currentUser.uid, finalAttendance);
+        } catch (e) {
+          console.error("Failed to save attendance to Firestore", e);
+        }
+      } else {
+        dbStore.saveAttendance(updatedAttendance);
+      }
 
       const empName = employees.find((e) => e.employee_id === newAtt.employee_id)?.employee_name || "Employee";
 
       // Record Action Log
       const logMsg = `Logged ${newAtt.status} for ${empName} on ${newAtt.date}. Overtime: ${newAtt.overtime_hours}h.`;
-      dbStore.addLog("Attendance Recorded", logMsg, "info");
-      setLogs(dbStore.getLogs());
+      await recordLog("Attendance Recorded", logMsg, "info");
     }
   };
 
   // Delete attendance record (automatically triggers SOS recalculation)
-  const handleDeleteAttendance = (attId: string) => {
+  const handleDeleteAttendance = async (attId: string) => {
     const recordToDelete = attendance.find((a) => a.attendance_id === attId);
     if (!recordToDelete) return;
 
     const updatedAttendance = attendance.filter((a) => a.attendance_id !== attId);
     setAttendance(updatedAttendance);
-    dbStore.saveAttendance(updatedAttendance);
+
+    if (currentUser) {
+      try {
+        await deleteUserAttendance(currentUser.uid, attId);
+      } catch (e) {
+        console.error("Failed to delete attendance from Firestore", e);
+      }
+    } else {
+      dbStore.saveAttendance(updatedAttendance);
+    }
 
     const empName = employees.find((e) => e.employee_id === recordToDelete.employee_id)?.employee_name || "Employee";
 
     // Log deletion
-    dbStore.addLog(
+    await recordLog(
       "Record Deleted",
       `Removed attendance record for ${empName} on ${recordToDelete.date}. Smart Engine recalculated cumulative salaries.`,
       "warning"
     );
-    setLogs(dbStore.getLogs());
   };
 
   // Quick update attendance from table
-  const handleQuickAttendance = (attId: string, status: "Present" | "Absent") => {
+  const handleQuickAttendance = async (attId: string, status: "Present" | "Absent") => {
+    const today = new Date().toISOString().split('T')[0];
+    const rec = attendance.find(a => a.attendance_id === attId);
+    if (!rec) return;
+
+    const updatedRecord: Attendance = {
+      ...rec,
+      date: today,
+      status: status,
+      updated_at: new Date().toISOString(),
+    };
+
+    const updatedAttendance = attendance.map((att) =>
+      att.attendance_id === attId ? updatedRecord : att
+    );
+    setAttendance(updatedAttendance);
+
+    if (currentUser) {
+      try {
+        await saveUserAttendance(currentUser.uid, updatedRecord);
+      } catch (e) {
+        console.error("Failed to update quick attendance in Firestore", e);
+      }
+    } else {
+      dbStore.saveAttendance(updatedAttendance);
+    }
+    
+    const empName = employees.find((e) => e.employee_id === rec.employee_id)?.employee_name || "Employee";
+    await recordLog("Quick Attendance", `Marked ${status} for ${empName} on ${today}.`, "info");
+  };
+
+  // Bulk update attendance from table
+  const handleBulkAttendance = async (status: "Present" | "Absent") => {
+    if (selectedAttendanceIds.length === 0) return;
     const today = new Date().toISOString().split('T')[0];
     const updatedAttendance = attendance.map((att) => {
-      if (att.attendance_id === attId) {
+      if (selectedAttendanceIds.includes(att.attendance_id)) {
         return {
           ...att,
           date: today,
@@ -253,34 +392,60 @@ export default function App() {
       return att;
     });
     setAttendance(updatedAttendance);
-    dbStore.saveAttendance(updatedAttendance);
-    
+
+    if (currentUser) {
+      try {
+        for (const attId of selectedAttendanceIds) {
+          const found = updatedAttendance.find(a => a.attendance_id === attId);
+          if (found) {
+            await saveUserAttendance(currentUser.uid, found);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to save bulk attendance to Firestore", e);
+      }
+    } else {
+      dbStore.saveAttendance(updatedAttendance);
+    }
+
+    const updatedCount = selectedAttendanceIds.length;
+    await recordLog(
+      "Bulk Attendance",
+      `Bulk marked ${status} for ${updatedCount} personnel records on ${today}.`,
+      "info"
+    );
+    setSelectedAttendanceIds([]);
+  };
+
+  const handleInlineOvertimeUpdate = async (attId: string, hours: number, earnings?: number) => {
     const rec = attendance.find(a => a.attendance_id === attId);
-    if (rec) {
-      const empName = employees.find((e) => e.employee_id === rec.employee_id)?.employee_name || "Employee";
-      dbStore.addLog("Quick Attendance", `Marked ${status} for ${empName} on ${today}.`, "info");
-      setLogs(dbStore.getLogs());
+    if (!rec) return;
+
+    const updatedRecord: Attendance = {
+      ...rec,
+      overtime_hours: hours,
+      overtime_earnings: earnings !== undefined ? earnings : rec.overtime_earnings,
+      updated_at: new Date().toISOString(),
+    };
+
+    const updatedAttendance = attendance.map((att) =>
+      att.attendance_id === attId ? updatedRecord : att
+    );
+    setAttendance(updatedAttendance);
+
+    if (currentUser) {
+      try {
+        await saveUserAttendance(currentUser.uid, updatedRecord);
+      } catch (e) {
+        console.error("Failed to update inline overtime in Firestore", e);
+      }
+    } else {
+      dbStore.saveAttendance(updatedAttendance);
     }
   };
 
-  const handleInlineOvertimeUpdate = (attId: string, hours: number, earnings?: number) => {
-    const updatedAttendance = attendance.map((att) => {
-      if (att.attendance_id === attId) {
-        return {
-          ...att,
-          overtime_hours: hours,
-          overtime_earnings: earnings !== undefined ? earnings : att.overtime_earnings,
-          updated_at: new Date().toISOString(),
-        };
-      }
-      return att;
-    });
-    setAttendance(updatedAttendance);
-    dbStore.saveAttendance(updatedAttendance);
-  };
-
   // Delete employee profile (removes profile & all related attendance entries)
-  const handleDeleteEmployee = (empId: string) => {
+  const handleDeleteEmployee = async (empId: string) => {
     const emp = employees.find((e) => e.employee_id === empId);
     if (!emp) return;
 
@@ -289,52 +454,111 @@ export default function App() {
 
     setEmployees(updatedEmployees);
     setAttendance(updatedAttendance);
-    dbStore.saveEmployees(updatedEmployees);
-    dbStore.saveAttendance(updatedAttendance);
+
+    if (currentUser) {
+      try {
+        await deleteUserEmployee(currentUser.uid, empId);
+        const relatedAtts = attendance.filter(a => a.employee_id === empId);
+        const relatedIds = relatedAtts.map(a => a.attendance_id);
+        if (relatedIds.length > 0) {
+          await clearUserAttendance(currentUser.uid, relatedIds);
+        }
+      } catch (e) {
+        console.error("Failed to delete employee from Firestore", e);
+      }
+    } else {
+      dbStore.saveEmployees(updatedEmployees);
+      dbStore.saveAttendance(updatedAttendance);
+    }
 
     if (selectedEmployeeProfile?.employee_id === empId) {
       setSelectedEmployeeProfile(null);
     }
 
-    dbStore.addLog(
+    await recordLog(
       "Profile Terminated",
-      `Deleted ${emp.employee_name}'s profile and purged ${updatedAttendance.length - attendance.length} related sessions.`,
+      `Deleted ${emp.employee_name}'s profile and purged ${attendance.length - updatedAttendance.length} related sessions.`,
       "danger"
     );
-    setLogs(dbStore.getLogs());
   };
 
   // Delete all attendance logs at once
-  const handleClearAllAttendance = () => {
+  const handleClearAllAttendance = async () => {
+    const attIds = attendance.map(a => a.attendance_id);
     setAttendance([]);
-    dbStore.saveAttendance([]);
-    dbStore.addLog(
+
+    if (currentUser) {
+      try {
+        if (attIds.length > 0) {
+          await clearUserAttendance(currentUser.uid, attIds);
+        }
+      } catch (e) {
+        console.error("Failed to clear attendance in Firestore", e);
+      }
+    } else {
+      dbStore.saveAttendance([]);
+    }
+
+    await recordLog(
       "Ledger Purged",
       "Successfully cleared all daily check-in and overtime ledger logs.",
       "danger"
     );
-    setLogs(dbStore.getLogs());
     setIsClearAllConfirmOpen(false);
   };
 
   // Full Database Seed / Reset
-  const handleResetDatabase = () => {
+  const handleResetDatabase = async () => {
     if (window.confirm("This will overwrite current data and restore the initial enterprise demo profiles. Continue?")) {
-      localStorage.removeItem("sm_employees");
-      localStorage.removeItem("sm_attendance");
-      localStorage.removeItem("sm_logs");
+      if (currentUser) {
+        setIsDbLoading(true);
+        try {
+          const currentEmpIds = employees.map(e => e.employee_id);
+          const currentAttIds = attendance.map(a => a.attendance_id);
+          const currentLogIds = logs.map(l => l.id);
 
-      setEmployees(dbStore.getEmployees());
-      setAttendance(dbStore.getAttendance());
+          await clearUserEmployees(currentUser.uid, currentEmpIds);
+          await clearUserAttendance(currentUser.uid, currentAttIds);
+          await clearUserLogs(currentUser.uid, currentLogIds);
+
+          const defaultEmps = dbStore.getEmployees();
+          const defaultAtts = dbStore.getAttendance();
+          const defaultLgs = dbStore.getLogs();
+
+          for (const emp of defaultEmps) {
+            await saveUserEmployee(currentUser.uid, emp);
+          }
+          for (const att of defaultAtts) {
+            await saveUserAttendance(currentUser.uid, att);
+          }
+          for (const lg of defaultLgs) {
+            await saveUserLog(currentUser.uid, lg);
+          }
+
+          setEmployees(defaultEmps);
+          setAttendance(defaultAtts);
+          setLogs(defaultLgs);
+        } catch (e) {
+          console.error("Failed to reset Firestore database", e);
+        } finally {
+          setIsDbLoading(false);
+        }
+      } else {
+        localStorage.removeItem("sm_employees");
+        localStorage.removeItem("sm_attendance");
+        localStorage.removeItem("sm_logs");
+
+        setEmployees(dbStore.getEmployees());
+        setAttendance(dbStore.getAttendance());
+      }
       setSelectedEmployeeProfile(null);
 
-      dbStore.addLog("Database Reset", "Restored initial system mock database with pre-calculated balances.", "warning");
-      setLogs(dbStore.getLogs());
+      await recordLog("Database Reset", "Restored initial system mock database with pre-calculated balances.", "warning");
     }
   };
 
   // Clear system activity logs
-  const handleClearLogs = () => {
+  const handleClearLogs = async () => {
     const initialLog: ActivityLog = {
       id: "LOG-CLR",
       timestamp: new Date().toISOString(),
@@ -342,8 +566,19 @@ export default function App() {
       details: "Audit history cleared by user command.",
       type: "info",
     };
-    dbStore.saveLogs([initialLog]);
-    setLogs([initialLog]);
+    if (currentUser) {
+      try {
+        const logIds = logs.map(l => l.id);
+        await clearUserLogs(currentUser.uid, logIds);
+        await saveUserLog(currentUser.uid, initialLog);
+        setLogs([initialLog]);
+      } catch (e) {
+        console.error("Failed to clear logs in Firestore", e);
+      }
+    } else {
+      dbStore.saveLogs([initialLog]);
+      setLogs([initialLog]);
+    }
   };
 
   return (
@@ -351,6 +586,12 @@ export default function App() {
       darkMode ? "bg-gradient-to-b from-[#060816] via-[#090c1d] to-[#0e1224] text-stone-200" : "bg-warm-bg text-stone-900"
     }`}>
       
+      {isDbLoading && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-2.5 rounded-full shadow-lg border animate-pulse bg-indigo-600 border-indigo-500 text-white dark:bg-indigo-950 dark:border-indigo-800">
+          <RefreshCw className="w-4 h-4 animate-spin text-white" />
+          <span className="text-xs font-semibold">Syncing with Firestore...</span>
+        </div>
+      )}
       {/* Immersive UI Background Glows */}
       {darkMode && (
         <>
@@ -505,7 +746,13 @@ export default function App() {
       <div className="flex-1 flex flex-col min-h-screen overflow-y-auto">
         {/* 1. Brand Navigation Header */}
         <div className="relative z-10">
-          <Header darkMode={darkMode} setDarkMode={setDarkMode} userEmail={userEmail} />
+          <Header 
+            darkMode={darkMode} 
+            setDarkMode={setDarkMode} 
+            currentUser={currentUser}
+            onSignInClick={() => setActiveTab("auth")}
+            onProfileClick={() => setActiveTab("profile")}
+          />
         </div>
 
         {/* Main Body Stage */}
@@ -524,6 +771,12 @@ export default function App() {
               setIsEmployeeModalOpen(true);
             }}
             darkMode={darkMode}
+          />
+        ) : activeTab === "auth" ? (
+          <AuthPage
+            darkMode={darkMode}
+            onSuccess={() => setActiveTab("operations")}
+            onCancel={() => setActiveTab("operations")}
           />
         ) : (
           <>
@@ -614,22 +867,30 @@ export default function App() {
                     />
                   </div>
 
-                  {/* Add Employee Button - Violet gradient glow */}
+                  {/* Add Employee Button - Violet gradient glow in dark mode, clean button in light mode */}
                   <button
                     id="trigger-add-employee-btn"
                     onClick={() => setIsEmployeeModalOpen(true)}
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold transition-all duration-200 cursor-pointer btn-glow-purple ${darkMode ? "text-white" : "text-[#2f00ff]"}`}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold transition-all duration-200 cursor-pointer ${
+                      darkMode 
+                        ? "btn-glow-purple text-white" 
+                        : "bg-purple-50 hover:bg-purple-100 text-[#2f00ff] border border-purple-200 hover:border-purple-300 shadow-sm hover:scale-[1.02] active:scale-95"
+                    }`}
                     style={{ fontSize: '15px' }}
                   >
                     <Plus className="w-4 h-4" />
                     Add Employee
                   </button>
 
-                  {/* Add Attendance Button - Cyan gradient glow */}
+                  {/* Add Attendance Button - Cyan gradient glow in dark mode, clean button in light mode */}
                   <button
                     id="trigger-add-attendance-btn"
                     onClick={() => setIsAttendanceModalOpen(true)}
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold transition-all duration-200 cursor-pointer btn-glow-blue ${darkMode ? "text-white" : "text-[#2f00ff]"}`}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold transition-all duration-200 cursor-pointer ${
+                      darkMode 
+                        ? "btn-glow-blue text-white" 
+                        : "bg-sky-50 hover:bg-sky-100 text-[#2f00ff] border border-sky-200 hover:border-sky-300 shadow-sm hover:scale-[1.02] active:scale-95"
+                    }`}
                     style={{ fontSize: '15px' }}
                   >
                     <ClipboardCheck className="w-4 h-4" />
@@ -764,13 +1025,86 @@ export default function App() {
                         </div>
                       </div>
 
+                      {/* Bulk Actions Bar */}
+                      {selectedAttendanceIds.length > 0 && (
+                        <div className={`px-6 py-3 border-b flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between animate-fade-in ${
+                          darkMode ? "bg-indigo-950/40 border-white/10 text-indigo-200" : "bg-indigo-50/80 border-slate-200 text-indigo-900"
+                        }`}>
+                          <div className="flex items-center gap-2.5">
+                            <div className={`flex items-center justify-center rounded-full font-extrabold ${
+                              darkMode ? "bg-indigo-500/20 text-[#3cffb6]" : "bg-indigo-100 text-indigo-700"
+                            }`} style={{ width: '24px', height: '24px', fontSize: '12px' }}>
+                              {selectedAttendanceIds.length}
+                            </div>
+                            <span className="text-xs font-semibold">record(s) selected for bulk updates:</span>
+                          </div>
+                          
+                          <div className="flex flex-wrap items-center gap-2">
+                            <button
+                              onClick={() => handleBulkAttendance("Present")}
+                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all duration-200 cursor-pointer active:scale-95 ${
+                                darkMode 
+                                  ? "bg-emerald-500/10 hover:bg-emerald-500/20 text-[#3cffb6] border-emerald-500/20 hover:border-emerald-500/40"
+                                  : "bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200"
+                              }`}
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                              Mark Present
+                            </button>
+                            
+                            <button
+                              onClick={() => handleBulkAttendance("Absent")}
+                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all duration-200 cursor-pointer active:scale-95 ${
+                                darkMode 
+                                  ? "bg-rose-500/10 hover:bg-rose-500/20 text-[#ff4a7a] border-rose-500/20 hover:border-rose-500/40"
+                                  : "bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200"
+                              }`}
+                            >
+                              <X className="w-3.5 h-3.5" />
+                              Mark Absent
+                            </button>
+
+                            <span className="h-4 w-px bg-slate-300 dark:bg-slate-700 mx-1"></span>
+
+                            <button
+                              onClick={() => setSelectedAttendanceIds([])}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all duration-200 cursor-pointer ${
+                                darkMode 
+                                  ? "bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700"
+                                  : "bg-white hover:bg-slate-50 text-slate-600 border-slate-200"
+                              }`}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
                       <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">
                           <thead>
                             <tr className={`text-[10px] uppercase tracking-wider font-extrabold font-mono whitespace-nowrap ${
                               darkMode ? "bg-[#161f36]/75 border-b border-white/10 text-[#8e97af]" : "bg-slate-50 border-b border-slate-200 text-slate-500"
                             }`}>
-                              <th className="py-3 px-3">#</th>
+                              <th className="py-3 px-3 text-center w-10">
+                                <input
+                                  type="checkbox"
+                                  checked={filteredAttendance.length > 0 && filteredAttendance.every(r => selectedAttendanceIds.includes(r.attendance_id))}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setSelectedAttendanceIds(filteredAttendance.map(r => r.attendance_id));
+                                    } else {
+                                      setSelectedAttendanceIds([]);
+                                    }
+                                  }}
+                                  className={`w-4 h-4 rounded border transition-all cursor-pointer focus:ring-offset-0 focus:ring-0 ${
+                                    darkMode 
+                                      ? "bg-slate-800 border-slate-700 text-indigo-500 accent-indigo-500" 
+                                      : "bg-white border-slate-300 text-indigo-600 accent-indigo-600"
+                                  }`}
+                                />
+                              </th>
+                              <th className="py-3 px-3" style={{ fontSize: '13px' }}>#</th>
                               <th className="py-3 px-3 text-center" style={{ fontSize: '13px' }}>Employee Image</th>
                               <th className="py-3 px-3" style={{ fontSize: '13px' }}>Employee Name</th>
                               <th className="py-3 px-3" style={{ fontSize: '13px', textAlign: 'center' }}>Date</th>
@@ -785,7 +1119,7 @@ export default function App() {
                           <tbody className="divide-y divide-white/8 text-xs font-medium">
                             {filteredAttendance.length === 0 ? (
                               <tr>
-                                <td colSpan={9} className="py-16 text-center text-xs text-slate-500 font-mono">
+                                <td colSpan={11} className="py-16 text-center text-xs text-slate-500 font-mono">
                                   No attendance logs found. Modify search or click <strong>Record Attendance</strong> to begin.
                                 </td>
                               </tr>
@@ -805,6 +1139,24 @@ export default function App() {
                                           : "hover:bg-rose-50/60 hover:border-rose-500 hover:shadow-[0_0_15px_rgba(244,63,94,0.12)] text-slate-700"
                                     }`}
                                   >
+                                  <td className="py-3 px-3 text-center">
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedAttendanceIds.includes(rec.attendance_id)}
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          setSelectedAttendanceIds(prev => [...prev, rec.attendance_id]);
+                                        } else {
+                                          setSelectedAttendanceIds(prev => prev.filter(id => id !== rec.attendance_id));
+                                        }
+                                      }}
+                                      className={`w-4 h-4 rounded border transition-all cursor-pointer focus:ring-offset-0 focus:ring-0 ${
+                                        darkMode 
+                                          ? "bg-slate-800 border-slate-700 text-indigo-500 accent-indigo-500" 
+                                          : "bg-white border-slate-300 text-indigo-600 accent-indigo-600"
+                                      }`}
+                                    />
+                                  </td>
                                   <td className="py-3 px-3 text-[#8e97af] font-mono">
                                     {String(index + 1).padStart(2, "0")}
                                   </td>
@@ -1219,6 +1571,186 @@ export default function App() {
                 handleDeleteAttendance={handleDeleteAttendance}
                 handleInlineOvertimeUpdate={handleInlineOvertimeUpdate}
               />
+              </motion.div>
+            )}
+
+            {/* Tab: User Profile View */}
+            {activeTab === "profile" && (
+              <motion.div
+                key="profile"
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                transition={{ duration: 0.3, ease: "easeInOut" }}
+                className="w-full"
+              >
+                {currentUser ? (
+                  <div className={`rounded-[28px] border overflow-hidden p-8 transition-all duration-300 relative ${
+                    darkMode 
+                      ? "bg-[#111625]/85 border-white/10 text-white shadow-2xl shadow-indigo-950/20" 
+                      : "bg-white border-slate-200 text-slate-900 shadow-xl shadow-slate-100"
+                  }`}>
+                    {/* Background glowing effects inside profile */}
+                    {darkMode && (
+                      <div className="absolute top-[-50px] right-[-50px] w-56 h-56 rounded-full bg-indigo-500/10 blur-3xl pointer-events-none"></div>
+                    )}
+                    
+                    {/* Header profile title */}
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 pb-6 border-b border-dashed border-slate-200 dark:border-white/10 mb-8">
+                      <div className="flex items-center gap-4">
+                        <div className="p-3 bg-indigo-500/10 text-indigo-500 rounded-2xl">
+                          <UserIcon className="w-6 h-6" />
+                        </div>
+                        <div>
+                          <h2 className="text-xl font-bold tracking-tight font-sans">System Profile Center</h2>
+                          <p className={`text-xs mt-0.5 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                            Your personalized administrative dashboard credentials
+                          </p>
+                        </div>
+                      </div>
+                      
+                      <button
+                        onClick={async () => {
+                          await signOut(auth);
+                          setActiveTab("operations");
+                          dbStore.addLog("Sign Out", "User signed out from Firebase Auth services.", "info");
+                          setLogs(dbStore.getLogs());
+                        }}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold border transition-all duration-300 cursor-pointer hover:scale-105 active:scale-95 ${
+                          darkMode 
+                            ? "bg-rose-500/10 hover:bg-rose-500/20 text-[#ff4a7a] border-rose-500/20 hover:border-rose-500/40"
+                            : "bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200"
+                        }`}
+                      >
+                        <LogOut className="w-3.5 h-3.5" />
+                        Sign Out
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                      {/* Left: User Card */}
+                      <div className={`p-6 rounded-2xl border flex flex-col items-center text-center justify-center ${
+                        darkMode ? "bg-slate-900/40 border-white/8" : "bg-slate-50 border-slate-200"
+                      }`}>
+                        <div className="relative mb-4">
+                          <div className="absolute inset-0 bg-indigo-500/20 rounded-full blur-md"></div>
+                          {currentUser.photoURL ? (
+                            <img 
+                              src={currentUser.photoURL} 
+                              alt="Profile Image" 
+                              className="w-24 h-24 rounded-full object-cover relative border-2 border-indigo-500"
+                              referrerPolicy="no-referrer"
+                            />
+                          ) : (
+                            <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white text-3xl font-black shadow-lg relative">
+                              {currentUser.displayName ? currentUser.displayName.charAt(0).toUpperCase() : (currentUser.email ? currentUser.email.charAt(0).toUpperCase() : "U")}
+                            </div>
+                          )}
+                        </div>
+                        
+                        <h3 className="text-lg font-bold">{currentUser.displayName || "Administrator"}</h3>
+                        <p className="text-xs text-indigo-500 font-mono font-bold mt-1">
+                          {currentUser.email}
+                        </p>
+                        
+                        <div className="mt-4 flex flex-wrap gap-2 justify-center">
+                          <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${
+                            darkMode ? "bg-emerald-500/10 text-emerald-400" : "bg-emerald-100 text-emerald-800"
+                          }`}>
+                            Active Session
+                          </span>
+                          <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${
+                            darkMode ? "bg-indigo-500/10 text-indigo-400" : "bg-indigo-100 text-indigo-800"
+                          }`}>
+                            {currentUser.providerData[0]?.providerId === "google.com" ? "Google Auth" : "Email Login"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Center: System Credentials & Stats */}
+                      <div className="lg:col-span-2 space-y-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className={`p-5 rounded-2xl border ${
+                            darkMode ? "bg-slate-900/20 border-white/8" : "bg-white border-slate-150"
+                          }`}>
+                            <span className={`text-[10px] uppercase font-bold tracking-wider ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                              Total Personnel Count
+                            </span>
+                            <div className="flex items-baseline gap-2 mt-1.5">
+                              <span className="text-2xl font-black">{employees.length}</span>
+                              <span className="text-xs text-slate-500">registered</span>
+                            </div>
+                          </div>
+                          
+                          <div className={`p-5 rounded-2xl border ${
+                            darkMode ? "bg-slate-900/20 border-white/8" : "bg-white border-slate-150"
+                          }`}>
+                            <span className={`text-[10px] uppercase font-bold tracking-wider ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                              Ledger Logs Recorded
+                            </span>
+                            <div className="flex items-baseline gap-2 mt-1.5">
+                              <span className="text-2xl font-black">{attendance.length}</span>
+                              <span className="text-xs text-slate-500">logs</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Account Details */}
+                        <div className={`p-6 rounded-2xl border ${
+                          darkMode ? "bg-slate-900/20 border-white/8" : "bg-white border-slate-200"
+                        }`}>
+                          <h4 className="text-sm font-bold mb-4 flex items-center gap-2">
+                            <Info className="w-4 h-4 text-indigo-500" />
+                            Account Verification & Security
+                          </h4>
+                          
+                          <div className="space-y-3.5 text-xs">
+                            <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-white/5">
+                              <span className="text-slate-500">User UID</span>
+                              <span className="font-mono text-[11px] text-[#2bdfff] bg-[#2bdfff]/5 px-2 py-0.5 rounded">
+                                {currentUser.uid}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center py-2 border-b border-slate-100 dark:border-white/5">
+                              <span className="text-slate-500">Email Verified</span>
+                              <span className={`font-bold font-mono px-2 py-0.5 rounded ${
+                                currentUser.emailVerified 
+                                  ? "text-emerald-500 bg-emerald-500/10" 
+                                  : "text-amber-500 bg-amber-500/10"
+                              }`}>
+                                {currentUser.emailVerified ? "Verified" : "Pending Verification"}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center py-2">
+                              <span className="text-slate-500">Created / Signed Up</span>
+                              <span className="text-slate-400">
+                                {currentUser.metadata.creationTime ? new Date(currentUser.metadata.creationTime).toLocaleString() : "Unknown"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className={`rounded-[28px] border overflow-hidden p-12 text-center transition-all duration-300 ${
+                    darkMode ? "bg-[#111625]/85 border-white/10" : "bg-white border-slate-200"
+                  }`}>
+                    <div className="inline-flex p-4 bg-indigo-500/10 text-indigo-500 rounded-3xl mb-4">
+                      <Lock className="w-8 h-8" />
+                    </div>
+                    <h2 className="text-xl font-bold">Unauthenticated Access</h2>
+                    <p className={`text-sm mt-1.5 max-w-md mx-auto ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                      You are currently viewing this page in guest mode. Please sign in or create an account to access customized profiles and database sync logs.
+                    </p>
+                    <button
+                      onClick={() => setActiveTab("auth")}
+                      className="mt-6 px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm transition-all shadow-lg shadow-indigo-600/25 active:scale-95 cursor-pointer font-sans"
+                    >
+                      Sign In Now
+                    </button>
+                  </div>
+                )}
               </motion.div>
             )}
             </AnimatePresence>

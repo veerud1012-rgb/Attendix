@@ -1,0 +1,78 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Validation helper for Employee entity
+    function isValidEmployee(data) {
+      return data.employee_id is string &&
+             data.employee_name is string && data.employee_name.size() <= 150 &&
+             data.address is string && data.address.size() <= 500 &&
+             data.monthly_salary is number &&
+             data.overtime_hours_rule is number &&
+             data.overtime_amount_rule is number &&
+             data.joining_date is string &&
+             data.avatar_color is string &&
+             data.created_at is string;
+    }
+
+    // Validation helper for Attendance entity
+    function isValidAttendance(data) {
+      return data.attendance_id is string &&
+             data.employee_id is string &&
+             data.date is string &&
+             (data.status == 'Present' || data.status == 'Absent') &&
+             data.overtime_hours is number &&
+             data.narration is string && data.narration.size() <= 1000 &&
+             data.created_at is string;
+    }
+
+    // Validation helper for ActivityLog entity
+    function isValidLog(data) {
+      return data.id is string &&
+             data.timestamp is string &&
+             data.action is string &&
+             data.details is string &&
+             (data.type == 'info' || data.type == 'success' || data.type == 'warning' || data.type == 'danger');
+    }
+
+    // Scoped rules for /users/{userId}
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+
+      match /employees/{employeeId} {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidEmployee(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+
+      match /attendance/{attendanceId} {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidAttendance(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+
+      match /logs/{logId} {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidLog(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+    }
+  }
+}

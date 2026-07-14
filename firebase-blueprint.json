@@ -1,0 +1,66 @@
+{
+  "entities": {
+    "Employee": {
+      "title": "Employee",
+      "description": "Information and salary rules for an employee",
+      "type": "object",
+      "properties": {
+        "employee_id": { "type": "string" },
+        "employee_name": { "type": "string" },
+        "address": { "type": "string" },
+        "monthly_salary": { "type": "number" },
+        "overtime_hours_rule": { "type": "number" },
+        "overtime_amount_rule": { "type": "number" },
+        "joining_date": { "type": "string" },
+        "avatar_color": { "type": "string" },
+        "created_at": { "type": "string" },
+        "employee_image": { "type": "string" }
+      },
+      "required": ["employee_id", "employee_name", "address", "monthly_salary", "overtime_hours_rule", "overtime_amount_rule", "joining_date", "avatar_color", "created_at"]
+    },
+    "Attendance": {
+      "title": "Attendance",
+      "description": "Daily check-in and overtime record of an employee",
+      "type": "object",
+      "properties": {
+        "attendance_id": { "type": "string" },
+        "employee_id": { "type": "string" },
+        "date": { "type": "string" },
+        "status": { "type": "string", "enum": ["Present", "Absent"] },
+        "overtime_hours": { "type": "number" },
+        "overtime_earnings": { "type": "number" },
+        "narration": { "type": "string" },
+        "created_at": { "type": "string" },
+        "updated_at": { "type": "string" }
+      },
+      "required": ["attendance_id", "employee_id", "date", "status", "overtime_hours", "narration", "created_at"]
+    },
+    "ActivityLog": {
+      "title": "ActivityLog",
+      "description": "A system audit log entry",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "action": { "type": "string" },
+        "details": { "type": "string" },
+        "type": { "type": "string", "enum": ["info", "success", "warning", "danger"] }
+      },
+      "required": ["id", "timestamp", "action", "details", "type"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/employees/{employeeId}": {
+      "schema": "Employee",
+      "description": "User specific roster of enrolled employees"
+    },
+    "/users/{userId}/attendance/{attendanceId}": {
+      "schema": "Attendance",
+      "description": "User specific daily attendance and check-in records"
+    },
+    "/users/{userId}/logs/{logId}": {
+      "schema": "ActivityLog",
+      "description": "User specific admin actions and system audit logs"
+    }
+  }
+}

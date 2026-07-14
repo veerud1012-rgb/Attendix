@@ -1,16 +1,26 @@
 import React, { useState, useEffect } from "react";
-import { Clock, Shield, Sun, Moon, Calendar, UserCheck } from "lucide-react";
+import { Clock, Shield, Sun, Moon, Calendar, UserCheck, LogIn, User as UserIcon } from "lucide-react";
+import { User } from "firebase/auth";
 import logo from "../assets/logo.png";
 
 interface HeaderProps {
   darkMode: boolean;
   setDarkMode: (val: boolean) => void;
-  userEmail: string;
+  currentUser: User | null;
+  onSignInClick: () => void;
+  onProfileClick: () => void;
 }
 
-export default function Header({ darkMode, setDarkMode, userEmail }: HeaderProps) {
+export default function Header({ 
+  darkMode, 
+  setDarkMode, 
+  currentUser, 
+  onSignInClick, 
+  onProfileClick 
+}: HeaderProps) {
   const [time, setTime] = useState<string>("");
   const [dateStr, setDateStr] = useState<string>("");
+
 
   useEffect(() => {
     const updateTime = () => {
@@ -91,15 +101,50 @@ export default function Header({ darkMode, setDarkMode, userEmail }: HeaderProps
             <span className="font-bold">{time}</span>
           </div>
 
-          {/* User Profile / Admin Mode */}
-          <div className={`hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-xl border text-xs transition-all duration-300 ${
-            darkMode 
-              ? "bg-[#090b1c]/80 border-indigo-500/30 text-[#b9c2d9] shadow-[0_0_18px_rgba(109,40,255,0.2)] hover:border-indigo-400/50" 
-              : "bg-indigo-50 border-indigo-100 text-indigo-700 shadow-sm"
-          }`}>
-            <Shield className="w-3.5 h-3.5 text-indigo-400" />
-            <span className="font-mono">{userEmail}</span>
-          </div>
+          {/* User Profile / Login Button */}
+          {currentUser ? (
+            <button
+              id="header-profile-btn"
+              onClick={onProfileClick}
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl border text-xs transition-all duration-300 cursor-pointer hover:scale-[1.03] active:scale-95 ${
+                darkMode 
+                  ? "bg-[#090b1c]/80 border-indigo-500/30 text-[#b9c2d9] shadow-[0_0_18px_rgba(109,40,255,0.2)] hover:border-indigo-400/50" 
+                  : "bg-indigo-50 border-indigo-100 text-indigo-700 hover:bg-indigo-100/50 shadow-sm"
+              }`}
+              title="View Profile Details"
+            >
+              {currentUser.photoURL ? (
+                <img 
+                  src={currentUser.photoURL} 
+                  alt="User photo" 
+                  className="w-5 h-5 rounded-full object-cover border border-white/20"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <div className={`w-5 h-5 rounded-full flex items-center justify-center font-black text-[10px] ${
+                  darkMode ? "bg-indigo-500/20 text-[#2bdfff]" : "bg-indigo-100 text-indigo-700"
+                }`}>
+                  {currentUser.displayName ? currentUser.displayName.charAt(0).toUpperCase() : (currentUser.email ? currentUser.email.charAt(0).toUpperCase() : "U")}
+                </div>
+              )}
+              <span className="font-semibold max-w-[120px] truncate font-mono">
+                {currentUser.displayName || currentUser.email}
+              </span>
+            </button>
+          ) : (
+            <button
+              id="header-sign-in-btn"
+              onClick={onSignInClick}
+              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-xl border text-xs font-bold transition-all duration-300 cursor-pointer hover:scale-105 active:scale-95 ${
+                darkMode 
+                  ? "bg-indigo-600/25 border-indigo-500/30 text-indigo-200 hover:bg-indigo-600/35 hover:border-indigo-500/50 shadow-[0_0_15px_rgba(109,40,255,0.25)]" 
+                  : "bg-indigo-50 hover:bg-indigo-100 border-indigo-100 hover:border-indigo-200 text-indigo-700 shadow-sm"
+              }`}
+            >
+              <LogIn className="w-3.5 h-3.5" />
+              <span>Sign In</span>
+            </button>
+          )}
 
           {/* Theme Toggle Button */}
           <button
