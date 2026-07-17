@@ -81,10 +81,11 @@ export default function DashboardStats({ stats, darkMode }: DashboardStatsProps)
   ];
 
   return (
-    <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5 mb-8">
-      {cardData.map((card) => {
+    <section className="grid grid-cols-6 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 sm:gap-5 mb-8">
+      {cardData.map((card, index) => {
         const Icon = card.icon;
         const isHovered = hoveredCard === card.id;
+        const colSpanClass = index < 3 ? "col-span-2 sm:col-span-1" : "col-span-3 sm:col-span-1";
 
         const shadowStyle = darkMode
           ? isHovered
@@ -100,9 +101,9 @@ export default function DashboardStats({ stats, darkMode }: DashboardStatsProps)
             id={card.id}
             onMouseEnter={() => setHoveredCard(card.id)}
             onMouseLeave={() => setHoveredCard(null)}
-            className={`relative rounded-[22px] p-5 border transition-all duration-300 transform overflow-hidden ${
+            className={`relative rounded-xl sm:rounded-[22px] p-2.5 xs:p-3.5 sm:p-5 border transition-all duration-300 transform overflow-hidden ${
               isHovered ? "-translate-y-1.5" : ""
-            } ${
+            } ${colSpanClass} ${
               darkMode
                 ? `bg-[#0d1021]/20 ${card.borderColor} backdrop-blur-[25px]`
                 : `bg-white/30 border-white/60 backdrop-blur-[25px] shadow-[inset_0_0_20px_rgba(255,255,255,0.5)]`
@@ -111,19 +112,19 @@ export default function DashboardStats({ stats, darkMode }: DashboardStatsProps)
           >
             {/* Always-on ambient visual glow element in the background */}
             <div
-              className="absolute -inset-0.5 rounded-[22px] transition-opacity duration-300 pointer-events-none"
+              className="absolute -inset-0.5 rounded-xl sm:rounded-[22px] transition-opacity duration-300 pointer-events-none"
               style={{
                 background: `radial-gradient(circle at 50% 50%, ${card.glowColor}25 0%, ${card.glowColor}05 60%, transparent 100%)`,
                 opacity: isHovered ? 1.0 : 0.75,
               }}
             />
 
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-[#8e97af]">
+            <div className="flex justify-between items-start mb-1 sm:mb-4">
+              <div className="min-w-0 flex-1 pr-1">
+                <p className="text-[7.5px] xs:text-[9px] sm:text-[10px] font-bold sm:font-semibold uppercase tracking-wider sm:tracking-widest text-[#8e97af] truncate">
                   {card.title}
                 </p>
-                <h3 className="text-2xl font-extrabold mt-1 tracking-tight">
+                <h3 className="text-xs xs:text-sm sm:text-2xl font-black sm:font-extrabold mt-0.5 sm:mt-1 tracking-tight truncate">
                   <span className={
                     darkMode
                       ? "text-white"
@@ -136,7 +137,7 @@ export default function DashboardStats({ stats, darkMode }: DashboardStatsProps)
 
               {/* Premium Icon Block with Inner/Outer Glow and Glass effect */}
               <div 
-                className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-300 ${
+                className={`w-6.5 h-6.5 xs:w-8 xs:h-8 sm:w-10 sm:h-10 rounded-lg xs:rounded-xl sm:rounded-2xl flex items-center justify-center transition-all duration-300 flex-shrink-0 ${
                   darkMode 
                     ? "bg-white/5 border backdrop-blur-md" 
                     : `bg-gradient-to-br ${card.color} text-white shadow-md`
@@ -149,7 +150,7 @@ export default function DashboardStats({ stats, darkMode }: DashboardStatsProps)
                 } : undefined}
               >
                 <Icon 
-                  className={`w-5 h-5 transition-transform duration-300 ${
+                  className={`w-3.5 h-3.5 xs:w-4 xs:h-4 sm:w-5 sm:h-5 transition-transform duration-300 ${
                     darkMode ? card.textColor : "text-white"
                   } ${isHovered ? "rotate-12 scale-110" : ""}`} 
                   style={darkMode ? { filter: `drop-shadow(0 0 6px ${card.glowColor}aa)` } : undefined} 
@@ -157,7 +158,7 @@ export default function DashboardStats({ stats, darkMode }: DashboardStatsProps)
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5 mt-2">
+            <div className="hidden sm:flex items-center gap-1.5 mt-2">
               <TrendingUp className={`w-3.5 h-3.5 ${darkMode ? card.textColor : card.lightTextColor}`} />
               <span className={`text-[11px] font-medium tracking-wide ${
                 darkMode ? "text-[#b9c2d9]" : "text-gray-500"

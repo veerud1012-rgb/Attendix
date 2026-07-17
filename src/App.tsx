@@ -20,7 +20,7 @@ import {
 } from "./firebaseDb";
 
 import Header from "./components/Header";
-import logo from "./assets/logo.png";
+const logo = "https://cdn.phototourl.com/free/2026-07-17-012f8326-edf9-4a6e-a714-050ed57bbe19.png";
 import DashboardStats from "./components/DashboardStats";
 import AnalyticsCharts from "./components/AnalyticsCharts";
 import EmployeeModal from "./components/EmployeeModal";
@@ -66,13 +66,16 @@ export default function App() {
   // Global Search
   const [searchQuery, setSearchQuery] = useState("");
   
+  // Attendance Filter
+  const [attendanceFilter, setAttendanceFilter] = useState<"all" | "present" | "absent" | "overtime">("all");
+  
   // Bulk Selection State
   const [selectedAttendanceIds, setSelectedAttendanceIds] = useState<string[]>([]);
 
   // Reset bulk selection on navigation/search change
   useEffect(() => {
     setSelectedAttendanceIds([]);
-  }, [activeTab, subTab, searchQuery]);
+  }, [activeTab, subTab, searchQuery, attendanceFilter]);
   
   // Doc accordion state
   const [isDocOpen, setIsDocOpen] = useState(false);
@@ -141,12 +144,23 @@ export default function App() {
     return dbStore.getDashboardSummary(processedAttendance, employees);
   }, [processedAttendance, employees]);
 
-  // Search filter across processed attendance (Name, ID, Date, Address)
+  // Search filter across processed attendance (Name, ID, Date, Address, Status/Overtime)
   const filteredAttendance = useMemo(() => {
-    const query = searchQuery.toLowerCase().trim();
-    if (!query) return processedAttendance;
+    let list = processedAttendance;
 
-    return processedAttendance.filter((rec) => {
+    // Apply quick filters
+    if (attendanceFilter === "present") {
+      list = list.filter((rec) => rec.status === "Present");
+    } else if (attendanceFilter === "absent") {
+      list = list.filter((rec) => rec.status === "Absent");
+    } else if (attendanceFilter === "overtime") {
+      list = list.filter((rec) => rec.overtime_hours > 0);
+    }
+
+    const query = searchQuery.toLowerCase().trim();
+    if (!query) return list;
+
+    return list.filter((rec) => {
       const emp = employees.find((e) => e.employee_id === rec.employee_id);
       return (
         rec.employee_name.toLowerCase().includes(query) ||
@@ -155,7 +169,7 @@ export default function App() {
         (emp && emp.address.toLowerCase().includes(query))
       );
     });
-  }, [processedAttendance, searchQuery, employees]);
+  }, [processedAttendance, searchQuery, employees, attendanceFilter]);
 
   // Search filter across Employees
   const filteredEmployees = useMemo(() => {
@@ -743,7 +757,7 @@ export default function App() {
       </aside>
 
       {/* Main Panel Content Area */}
-      <div className="flex-1 flex flex-col min-h-screen overflow-y-auto">
+      <div className="flex-1 flex flex-col min-h-screen overflow-y-auto pb-20 md:pb-0">
         {/* 1. Brand Navigation Header */}
         <div className="relative z-10">
           <Header 
@@ -787,60 +801,6 @@ export default function App() {
             <div className={`flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-1 border-b ${
               darkMode ? "border-white/5" : "border-stone-200"
             }`}>
-              
-              {/* Tab Toggles */}
-              <div className={`flex md:hidden p-1 rounded-2xl ${
-                darkMode ? "bg-white/5 border border-white/5" : "bg-[#EAE6DF]/40 border border-[#EAE6DF]/30"
-              }`}>
-                <button
-                  id="tab-operations-btn"
-                  onClick={() => setActiveTab("operations")}
-                  className={`flex items-center gap-2 px-4.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer ${
-                    activeTab === "operations"
-                      ? darkMode
-                        ? "bg-[#0b0f24] text-white border border-indigo-500/20 shadow-[0_0_15px_rgba(99,102,241,0.15)]"
-                        : "bg-white text-stone-900 border border-[#eae6df] shadow-sm font-bold"
-                      : darkMode 
-                        ? "text-gray-400 hover:text-gray-200" 
-                        : "text-stone-600 hover:text-stone-900"
-                  }`}
-                >
-                  <Sliders className="w-4 h-4 text-brand-indigo" />
-                  Core Operations
-                </button>
-                <button
-                  id="tab-reports-btn"
-                  onClick={() => setActiveTab("reports")}
-                  className={`flex items-center gap-2 px-4.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer ${
-                    activeTab === "reports"
-                      ? darkMode
-                        ? "bg-[#051322] text-white border border-blue-500/20 shadow-[0_0_15px_rgba(14,165,233,0.15)]"
-                        : "bg-white text-stone-900 border border-[#eae6df] shadow-sm font-bold"
-                      : darkMode 
-                        ? "text-gray-400 hover:text-gray-200" 
-                        : "text-stone-600 hover:text-stone-900"
-                  }`}
-                >
-                  <CalendarClock className="w-4 h-4 text-brand-blue" />
-                  Financial Reports
-                </button>
-                <button
-                  id="tab-analytics-btn"
-                  onClick={() => setActiveTab("analytics")}
-                  className={`flex items-center gap-2 px-4.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 cursor-pointer ${
-                    activeTab === "analytics"
-                      ? darkMode
-                        ? "bg-[#140a25] text-white border border-purple-500/20 shadow-[0_0_15px_rgba(168,85,247,0.15)]"
-                        : "bg-white text-stone-900 border border-[#eae6df] shadow-sm font-bold"
-                      : darkMode 
-                        ? "text-gray-400 hover:text-gray-200" 
-                        : "text-stone-600 hover:text-stone-900"
-                  }`}
-                >
-                  <Activity className="w-4 h-4 text-brand-purple" />
-                  Analytics Nodes
-                </button>
-              </div>
 
               {/* Toolbar action buttons for active operations tab */}
               {activeTab === "operations" && (
@@ -867,49 +827,51 @@ export default function App() {
                     />
                   </div>
 
-                  {/* Add Employee Button - Violet gradient glow in dark mode, clean button in light mode */}
-                  <button
-                    id="trigger-add-employee-btn"
-                    onClick={() => setIsEmployeeModalOpen(true)}
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold transition-all duration-200 cursor-pointer ${
-                      darkMode 
-                        ? "btn-glow-purple text-white" 
-                        : "bg-purple-50 hover:bg-purple-100 text-[#2f00ff] border border-purple-200 hover:border-purple-300 shadow-sm hover:scale-[1.02] active:scale-95"
-                    }`}
-                    style={{ fontSize: '15px' }}
-                  >
-                    <Plus className="w-4 h-4" />
-                    Add Employee
-                  </button>
+                  {/* Add Employee and Attendance Actions Row - Designed to match horizontal single row on mobile perfectly */}
+                  <div className="flex flex-row items-center gap-2 sm:gap-3 w-full md:w-auto overflow-x-auto scrollbar-none">
+                    
+                    <button
+                      id="trigger-add-employee-btn"
+                      onClick={() => setIsEmployeeModalOpen(true)}
+                      className={`flex items-center justify-center gap-1.5 sm:gap-2.5 px-3 sm:px-6 py-2.5 sm:py-3 rounded-full font-bold transition-all duration-200 cursor-pointer shadow-sm hover:scale-[1.02] active:scale-95 flex-1 sm:flex-initial whitespace-nowrap ${
+                        darkMode 
+                          ? "btn-glow-purple text-white border border-purple-500/30" 
+                          : "bg-[#faf5ff] hover:bg-[#f3e8ff] text-[#2f00ff] border border-[#e9d5ff]/85 shadow-[0_2px_8px_rgba(168,85,247,0.03)]"
+                      }`}
+                      style={{ fontSize: '13px' }}
+                    >
+                      <Plus className={`w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.5px] ${darkMode ? "text-white" : "text-[#2f00ff]"}`} />
+                      Add Employee
+                    </button>
 
-                  {/* Add Attendance Button - Cyan gradient glow in dark mode, clean button in light mode */}
-                  <button
-                    id="trigger-add-attendance-btn"
-                    onClick={() => setIsAttendanceModalOpen(true)}
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold transition-all duration-200 cursor-pointer ${
-                      darkMode 
-                        ? "btn-glow-blue text-white" 
-                        : "bg-sky-50 hover:bg-sky-100 text-[#2f00ff] border border-sky-200 hover:border-sky-300 shadow-sm hover:scale-[1.02] active:scale-95"
-                    }`}
-                    style={{ fontSize: '15px' }}
-                  >
-                    <ClipboardCheck className="w-4 h-4" />
-                    Add Attendance
-                  </button>
+                    <button
+                      id="trigger-add-attendance-btn"
+                      onClick={() => setIsAttendanceModalOpen(true)}
+                      className={`flex items-center justify-center gap-1.5 sm:gap-2.5 px-3 sm:px-6 py-2.5 sm:py-3 rounded-full font-bold transition-all duration-200 cursor-pointer shadow-sm hover:scale-[1.02] active:scale-95 flex-1 sm:flex-initial whitespace-nowrap ${
+                        darkMode 
+                          ? "btn-glow-blue text-white border border-blue-500/30" 
+                          : "bg-[#f0f9ff] hover:bg-[#e0f2fe] text-[#2f00ff] border border-[#bae6fd]/85 shadow-[0_2px_8px_rgba(59,130,246,0.03)]"
+                      }`}
+                      style={{ fontSize: '13px' }}
+                    >
+                      <ClipboardCheck className={`w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2px] ${darkMode ? "text-white" : "text-[#2f00ff]"}`} />
+                      Add Attendance
+                    </button>
 
-                  {/* DB Reset Button */}
-                  <button
-                    id="db-reset-btn"
-                    onClick={handleResetDatabase}
-                    title="Reset to pre-seeded dataset"
-                    className={`p-2.5 rounded-xl border transition-all cursor-pointer ${
-                      darkMode
-                        ? "bg-[#0a0d24] border-white/5 text-gray-400 hover:text-white hover:border-white/15"
-                        : "bg-white border-slate-200 text-slate-500 hover:text-slate-800 hover:bg-slate-100 shadow-sm"
-                    }`}
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                  </button>
+                    <button
+                      id="db-reset-btn"
+                      onClick={handleResetDatabase}
+                      title="Reset to pre-seeded dataset"
+                      className={`p-2.5 sm:p-3 rounded-[15px] sm:rounded-[18px] border transition-all cursor-pointer shadow-sm hover:scale-[1.02] active:scale-95 shrink-0 ${
+                        darkMode
+                          ? "bg-[#0a0d24] border-white/5 text-gray-400 hover:text-white hover:border-white/15"
+                          : "bg-white border-slate-200/80 text-[#64748b] hover:text-slate-800 hover:bg-slate-50 shadow-[0_2px_8px_rgba(0,0,0,0.02)]"
+                      }`}
+                    >
+                      <RefreshCw className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2px]" />
+                    </button>
+
+                  </div>
 
                 </div>
               )}
@@ -932,58 +894,6 @@ export default function App() {
                 
                 {/* Main Operations List Grid */}
                 <div className="col-span-1 lg:col-span-12 space-y-6">
-                  
-                  {/* Internal Subtab Switcher */}
-                  <div className={`rounded-2xl p-1.5 border flex md:hidden justify-between items-center ${
-                    darkMode ? "bg-[#12192d]/50 border-white/8 backdrop-blur-[20px]" : "bg-white border-slate-200 shadow-sm"
-                  }`}>
-                    <div className="flex gap-2">
-                      <button
-                        id="subtab-attendance-btn"
-                        onClick={() => {
-                          setSubTab("attendance");
-                          setSearchQuery("");
-                        }}
-                        className={`px-4.5 py-2.5 text-xs font-bold rounded-xl transition-all duration-300 cursor-pointer ${
-                          subTab === "attendance"
-                            ? darkMode
-                              ? "bg-brand-blue/15 text-[#2bdfff] border border-[#00cfff]/30 shadow-[0_0_15px_rgba(0,207,255,0.15)]"
-                              : "bg-indigo-50 text-indigo-600 border border-indigo-100 font-extrabold shadow-sm"
-                            : darkMode
-                              ? "text-[#8e97af] hover:text-white"
-                              : "text-stone-500 hover:text-stone-800"
-                        }`}
-                      >
-                        📅 Daily Attendance Logs
-                      </button>
-                      <button
-                        id="subtab-employees-btn"
-                        onClick={() => {
-                          setSubTab("employees");
-                          setSearchQuery("");
-                        }}
-                        className={`px-4.5 py-2.5 text-xs font-bold rounded-xl transition-all duration-300 cursor-pointer ${
-                          subTab === "employees"
-                            ? darkMode
-                              ? "bg-brand-purple/15 text-[#c084fc] border border-[#9b5dff]/30 shadow-[0_0_15px_rgba(155,93,255,0.15)]"
-                              : "bg-indigo-50 text-indigo-600 border border-indigo-100 font-extrabold shadow-sm"
-                            : darkMode
-                              ? "text-[#8e97af] hover:text-white"
-                              : "text-stone-500 hover:text-stone-800"
-                        }`}
-                      >
-                        👥 Registered Workforce ({employees.length})
-                      </button>
-                    </div>
-
-                    <span className={`hidden sm:inline text-[9px] font-mono font-black tracking-wider px-3 py-1 rounded-lg border ${
-                      darkMode 
-                        ? "bg-[#00d48a]/10 text-[#3cffb6] border-[#00d48a]/20 shadow-[0_0_12px_rgba(0,212,138,0.15)] animate-pulse" 
-                        : "bg-emerald-50 text-emerald-700 border-emerald-100"
-                    }`}>
-                      SMART ENGINE ACTIVE
-                    </span>
-                  </div>
 
                   {/* Subtab 1: Daily Attendance table list */}
                   {subTab === "attendance" ? (
@@ -1023,6 +933,89 @@ export default function App() {
                             {filteredAttendance.length} records mapped
                           </span>
                         </div>
+                      </div>
+
+                      {/* Quick-Filter Buttons - Optimized to fit horizontally on mobile exactly like Image 2 */}
+                      <div className={`px-4 sm:px-6 py-3.5 sm:py-4.5 border-b flex flex-wrap items-center gap-2.5 sm:gap-3.5 ${
+                        darkMode ? "bg-[#161f36]/25 border-white/5" : "bg-white border-slate-100/80"
+                      }`}>
+                        <span className="text-xs font-bold text-slate-500 dark:text-[#8e97af] mr-1.5 uppercase tracking-wider font-mono hidden sm:inline">Quick Filter:</span>
+                        <button
+                          onClick={() => setAttendanceFilter("all")}
+                          className={`px-4 py-2 sm:px-5 sm:py-2.5 rounded-full text-xs font-bold transition-all duration-300 cursor-pointer flex items-center gap-2.5 border ${
+                            attendanceFilter === "all"
+                              ? darkMode
+                                ? "bg-indigo-600/25 text-indigo-300 border-indigo-500/50 shadow-[0_0_12px_rgba(99,102,241,0.25)]"
+                                : "bg-white border-indigo-200 text-indigo-700 shadow-[0_2px_10px_rgba(99,102,241,0.06)] font-extrabold scale-[1.01]"
+                              : darkMode
+                                ? "bg-white/5 hover:bg-white/10 text-stone-300 border border-white/5"
+                                : "bg-white hover:bg-slate-50 text-slate-600 border-slate-200 shadow-sm"
+                          }`}
+                        >
+                          <span className={`w-2.5 h-2.5 rounded-full ${
+                            attendanceFilter === "all" 
+                              ? "bg-indigo-500 shadow-[0_0_10px_#6366f1,0_0_4px_#6366f1]" 
+                              : "bg-slate-400"
+                          }`} />
+                          All Records
+                        </button>
+                        <button
+                          onClick={() => setAttendanceFilter("present")}
+                          className={`px-4 py-2 sm:px-5 sm:py-2.5 rounded-full text-xs font-bold transition-all duration-300 cursor-pointer flex items-center gap-2.5 border ${
+                            attendanceFilter === "present"
+                              ? darkMode
+                                ? "bg-emerald-600/25 text-emerald-300 border-emerald-500/40 shadow-[0_0_12px_rgba(16,185,129,0.25)]"
+                                : "bg-white border-emerald-200 text-[#047857] shadow-[0_3px_12px_rgba(16,185,129,0.08)] font-extrabold scale-[1.02]"
+                              : darkMode
+                                ? "bg-white/5 hover:bg-white/10 text-emerald-400 border border-white/5 opacity-60 hover:opacity-100"
+                                : "bg-white hover:bg-slate-50 text-[#047857]/80 border-slate-200 shadow-sm opacity-85 hover:opacity-100"
+                          }`}
+                        >
+                          <span className={`w-2.5 h-2.5 rounded-full bg-emerald-500 transition-all duration-300 ${
+                            attendanceFilter === "present"
+                              ? "shadow-[0_0_10px_#10b981,0_0_4px_#10b981]"
+                              : "shadow-[0_0_5px_rgba(16,185,129,0.5)]"
+                          }`} />
+                          Present Only
+                        </button>
+                        <button
+                          onClick={() => setAttendanceFilter("absent")}
+                          className={`px-4 py-2 sm:px-5 sm:py-2.5 rounded-full text-xs font-bold transition-all duration-300 cursor-pointer flex items-center gap-2.5 border ${
+                            attendanceFilter === "absent"
+                              ? darkMode
+                                ? "bg-rose-600/25 text-rose-300 border-rose-500/40 shadow-[0_0_12px_rgba(244,63,94,0.25)]"
+                                : "bg-white border-rose-200 text-[#be123c] shadow-[0_3px_12px_rgba(244,63,94,0.08)] font-extrabold scale-[1.02]"
+                              : darkMode
+                                ? "bg-white/5 hover:bg-white/10 text-rose-400 border border-white/5 opacity-60 hover:opacity-100"
+                                : "bg-white hover:bg-slate-50 text-[#be123c]/80 border-slate-200 shadow-sm opacity-85 hover:opacity-100"
+                          }`}
+                        >
+                          <span className={`w-2.5 h-2.5 rounded-full bg-rose-500 transition-all duration-300 ${
+                            attendanceFilter === "absent"
+                              ? "shadow-[0_0_10px_#f43f5e,0_0_4px_#f43f5e]"
+                              : "shadow-[0_0_5px_rgba(244,63,94,0.5)]"
+                          }`} />
+                          Absent Only
+                        </button>
+                        <button
+                          onClick={() => setAttendanceFilter("overtime")}
+                          className={`px-4 py-2 sm:px-5 sm:py-2.5 rounded-full text-xs font-bold transition-all duration-300 cursor-pointer flex items-center gap-2.5 border ${
+                            attendanceFilter === "overtime"
+                              ? darkMode
+                                ? "bg-amber-600/25 text-amber-300 border-amber-500/40 shadow-[0_0_12px_rgba(245,158,11,0.25)]"
+                                : "bg-white border-amber-200 text-[#b45309] shadow-[0_3px_12px_rgba(245,158,11,0.08)] font-extrabold scale-[1.02]"
+                              : darkMode
+                                ? "bg-white/5 hover:bg-white/10 text-amber-400 border border-white/5 opacity-60 hover:opacity-100"
+                                : "bg-white hover:bg-slate-50 text-[#b45309]/80 border-slate-200 shadow-sm opacity-85 hover:opacity-100"
+                          }`}
+                        >
+                          <span className={`w-2.5 h-2.5 rounded-full bg-amber-500 transition-all duration-300 ${
+                            attendanceFilter === "overtime"
+                              ? "shadow-[0_0_10px_#f59e0b,0_0_4px_#f59e0b]"
+                              : "shadow-[0_0_5px_rgba(245,158,11,0.5)]"
+                          }`} />
+                          Overtime Only
+                        </button>
                       </div>
 
                       {/* Bulk Actions Bar */}
@@ -1667,30 +1660,30 @@ export default function App() {
                         </div>
                       </div>
 
-                      {/* Center: System Credentials & Stats */}
+                      {/* Center: System Credentials & Stats - Optimized to match Image 3 perfectly */}
                       <div className="lg:col-span-2 space-y-6">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div className={`p-5 rounded-2xl border ${
-                            darkMode ? "bg-slate-900/20 border-white/8" : "bg-white border-slate-150"
+                        <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                          <div className={`p-4 pb-5 sm:p-6 sm:pb-7 rounded-[18px] sm:rounded-[22px] border ${
+                            darkMode ? "bg-slate-900/20 border-white/8" : "bg-white border-[#1e293b] shadow-[0_2px_12px_rgba(30,41,59,0.01)]"
                           }`}>
-                            <span className={`text-[10px] uppercase font-bold tracking-wider ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
-                              Total Personnel Count
+                            <span className={`text-[9px] sm:text-[11px] md:text-[12px] font-extrabold tracking-widest uppercase block mb-1.5 sm:mb-2.5 ${darkMode ? "text-slate-400" : "text-[#5c6e8d]"}`}>
+                              TOTAL PERSONNEL COUNT
                             </span>
-                            <div className="flex items-baseline gap-2 mt-1.5">
-                              <span className="text-2xl font-black">{employees.length}</span>
-                              <span className="text-xs text-slate-500">registered</span>
+                            <div className="flex items-baseline gap-1.5 sm:gap-2">
+                              <span className={`text-2xl sm:text-3xl md:text-4xl font-black tracking-tight ${darkMode ? "text-white" : "text-[#0f172a]"}`}>{employees.length}</span>
+                              <span className={`text-xs sm:text-sm md:text-base font-semibold ${darkMode ? "text-slate-400" : "text-[#5c6e8d]"}`}>registered</span>
                             </div>
                           </div>
                           
-                          <div className={`p-5 rounded-2xl border ${
-                            darkMode ? "bg-slate-900/20 border-white/8" : "bg-white border-slate-150"
+                          <div className={`p-4 pb-5 sm:p-6 sm:pb-7 rounded-[18px] sm:rounded-[22px] border ${
+                            darkMode ? "bg-slate-900/20 border-white/8" : "bg-white border-[#1e293b] shadow-[0_2px_12px_rgba(30,41,59,0.01)]"
                           }`}>
-                            <span className={`text-[10px] uppercase font-bold tracking-wider ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
-                              Ledger Logs Recorded
+                            <span className={`text-[9px] sm:text-[11px] md:text-[12px] font-extrabold tracking-widest uppercase block mb-1.5 sm:mb-2.5 ${darkMode ? "text-slate-400" : "text-[#5c6e8d]"}`}>
+                              LEDGER LOGS RECORDED
                             </span>
-                            <div className="flex items-baseline gap-2 mt-1.5">
-                              <span className="text-2xl font-black">{attendance.length}</span>
-                              <span className="text-xs text-slate-500">logs</span>
+                            <div className="flex items-baseline gap-1.5 sm:gap-2">
+                              <span className={`text-2xl sm:text-3xl md:text-4xl font-black tracking-tight ${darkMode ? "text-white" : "text-[#0f172a]"}`}>{attendance.length}</span>
+                              <span className={`text-xs sm:text-sm md:text-base font-semibold ${darkMode ? "text-slate-400" : "text-[#5c6e8d]"}`}>logs</span>
                             </div>
                           </div>
                         </div>
@@ -1923,11 +1916,138 @@ export default function App() {
       <footer className={`py-8 text-center text-[11px] font-mono border-t mt-12 transition-all ${
         darkMode ? "bg-brand-black/40 border-white/5 text-gray-500" : "bg-white border-slate-200 text-slate-400"
       }`}>
-        <p>© 2026 ATTENDIX // HR Dashboard Solution.</p>
+        <p>© 2026 ATTENDEXA // HR Dashboard Solution.</p>
         <p className="mt-1.5 text-brand-purple">Built for veer.ud.1012@gmail.com</p>
       </footer>
 
       </div> {/* This closes the Main Panel Content Area */}
+
+      {/* Sticky Mobile Footer Menu */}
+      <div className={`fixed bottom-0 left-0 right-0 z-50 md:hidden border-t px-4 py-2 backdrop-blur-[30px] transition-all duration-300 ${
+        darkMode 
+          ? "bg-[#0d1222]/90 border-white/8 text-[#8e97af] shadow-[0_-10px_35px_rgba(0,0,0,0.6)]" 
+          : "bg-white/95 border-slate-200 text-slate-500 shadow-[0_-8px_30px_rgba(0,0,0,0.06)]"
+      }`}>
+        <div className="max-w-md mx-auto flex items-center justify-between">
+          <button
+            onClick={() => {
+              setActiveTab("operations");
+              setSubTab("attendance");
+              setSelectedEmployeeProfile(null);
+            }}
+            className="flex flex-col items-center justify-center flex-1 py-1 transition-all relative cursor-pointer"
+          >
+            <div className={`p-1.5 rounded-xl transition-all ${
+              activeTab === "operations" && subTab === "attendance" && !selectedEmployeeProfile
+                ? darkMode
+                  ? "bg-[#6d28ff]/15 text-[#9b5dff] shadow-[0_0_12px_rgba(155,93,255,0.25)]"
+                  : "bg-indigo-50 text-indigo-600 font-bold"
+                : "text-slate-400 hover:text-indigo-500"
+            }`}>
+              <LayoutGrid className="w-5 h-5" />
+            </div>
+            <span className={`text-[9px] mt-0.5 tracking-tight ${
+              activeTab === "operations" && subTab === "attendance" && !selectedEmployeeProfile
+                ? "font-bold text-[#9b5dff]"
+                : "font-medium text-slate-400"
+            }`}>Logs</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveTab("operations");
+              setSubTab("employees");
+              setSelectedEmployeeProfile(null);
+            }}
+            className="flex flex-col items-center justify-center flex-1 py-1 transition-all relative cursor-pointer"
+          >
+            <div className={`p-1.5 rounded-xl transition-all ${
+              activeTab === "operations" && subTab === "employees" && !selectedEmployeeProfile
+                ? darkMode
+                  ? "bg-[#6d28ff]/15 text-[#9b5dff] shadow-[0_0_12px_rgba(155,93,255,0.25)]"
+                  : "bg-indigo-50 text-indigo-600 font-bold"
+                : "text-slate-400 hover:text-indigo-500"
+            }`}>
+              <Users className="w-5 h-5" />
+            </div>
+            <span className={`text-[9px] mt-0.5 tracking-tight ${
+              activeTab === "operations" && subTab === "employees" && !selectedEmployeeProfile
+                ? "font-bold text-[#9b5dff]"
+                : "font-medium text-slate-400"
+            }`}>Workforce</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveTab("reports");
+              setSelectedEmployeeProfile(null);
+            }}
+            className="flex flex-col items-center justify-center flex-1 py-1 transition-all relative cursor-pointer"
+          >
+            <div className={`p-1.5 rounded-xl transition-all ${
+              activeTab === "reports" && !selectedEmployeeProfile
+                ? darkMode
+                  ? "bg-[#6d28ff]/15 text-[#9b5dff] shadow-[0_0_12px_rgba(155,93,255,0.25)]"
+                  : "bg-indigo-50 text-indigo-600 font-bold"
+                : "text-slate-400 hover:text-indigo-500"
+            }`}>
+              <FileText className="w-5 h-5" />
+            </div>
+            <span className={`text-[9px] mt-0.5 tracking-tight ${
+              activeTab === "reports" && !selectedEmployeeProfile
+                ? "font-bold text-[#9b5dff]"
+                : "font-medium text-slate-400"
+            }`}>Reports</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveTab("analytics");
+              setSelectedEmployeeProfile(null);
+            }}
+            className="flex flex-col items-center justify-center flex-1 py-1 transition-all relative cursor-pointer"
+          >
+            <div className={`p-1.5 rounded-xl transition-all ${
+              activeTab === "analytics" && !selectedEmployeeProfile
+                ? darkMode
+                  ? "bg-[#6d28ff]/15 text-[#9b5dff] shadow-[0_0_12px_rgba(155,93,255,0.25)]"
+                  : "bg-indigo-50 text-indigo-600 font-bold"
+                : "text-slate-400 hover:text-indigo-500"
+            }`}>
+              <LineChart className="w-5 h-5" />
+            </div>
+            <span className={`text-[9px] mt-0.5 tracking-tight ${
+              activeTab === "analytics" && !selectedEmployeeProfile
+                ? "font-bold text-[#9b5dff]"
+                : "font-medium text-slate-400"
+            }`}>Analytics</span>
+          </button>
+
+          <button
+            onClick={() => {
+              setActiveTab("history");
+              setSelectedEmployeeProfile(null);
+              setSearchQuery("");
+            }}
+            className="flex flex-col items-center justify-center flex-1 py-1 transition-all relative cursor-pointer"
+          >
+            <div className={`p-1.5 rounded-xl transition-all ${
+              activeTab === "history" && !selectedEmployeeProfile
+                ? darkMode
+                  ? "bg-[#6d28ff]/15 text-[#9b5dff] shadow-[0_0_12px_rgba(155,93,255,0.25)]"
+                  : "bg-indigo-50 text-indigo-600 font-bold"
+                : "text-slate-400 hover:text-indigo-500"
+            }`}>
+              <CalendarDays className="w-5 h-5" />
+            </div>
+            <span className={`text-[9px] mt-0.5 tracking-tight ${
+              activeTab === "history" && !selectedEmployeeProfile
+                ? "font-bold text-[#9b5dff]"
+                : "font-medium text-slate-400"
+            }`}>History</span>
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

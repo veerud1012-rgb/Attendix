@@ -51,7 +51,7 @@ export default function AuthPage({ darkMode, onSuccess, onCancel }: AuthPageProp
         await updateProfile(userCredential.user, {
           displayName: displayName
         });
-        setSuccess("Account created successfully! Welcome to Attendix.");
+        setSuccess("Account created successfully! Welcome to Attendexa.");
       } else {
         await signInWithEmailAndPassword(auth, email, password);
         setSuccess("Welcome back! Loading your secure session...");
@@ -134,7 +134,7 @@ export default function AuthPage({ darkMode, onSuccess, onCancel }: AuthPageProp
                 <ShieldCheck className="w-5 h-5" />
               </div>
               <span className="font-extrabold text-lg tracking-tight font-sans">
-                Attendix <span className="text-xs font-semibold text-indigo-500 px-1.5 py-0.5 rounded-md bg-indigo-500/10 ml-1 font-mono">SECURE</span>
+                Attendexa <span className="text-xs font-semibold text-indigo-500 px-1.5 py-0.5 rounded-md bg-indigo-500/10 ml-1 font-mono">SECURE</span>
               </span>
             </div>
 
@@ -216,7 +216,7 @@ export default function AuthPage({ darkMode, onSuccess, onCancel }: AuthPageProp
                   {isSignUp ? "Registration Portal" : "Secure Portal Login"}
                 </span>
                 <h1 className="text-2xl font-black tracking-tight mt-3">
-                  {isSignUp ? "Create Admin Credentials" : "Sign In to Attendix"}
+                  {isSignUp ? "Create Admin Credentials" : "Sign In to Attendexa"}
                 </h1>
                 <p className={`text-xs mt-1.5 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
                   {isSignUp 
@@ -295,7 +295,7 @@ export default function AuthPage({ darkMode, onSuccess, onCancel }: AuthPageProp
                     <input
                       type="email"
                       required
-                      placeholder="admin@attendix.org"
+                      placeholder="admin@attendexa.org"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       className={`w-full pl-10 pr-4 py-3 rounded-xl text-sm border focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all ${

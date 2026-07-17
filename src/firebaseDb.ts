@@ -105,7 +105,12 @@ export async function fetchUserLogs(userId: string): Promise<ActivityLog[]> {
 export async function saveUserEmployee(userId: string, employee: Employee): Promise<void> {
   const path = `users/${userId}/employees/${employee.employee_id}`;
   try {
-    await setDoc(doc(db, "users", userId, "employees", employee.employee_id), employee);
+    // Sanitize to avoid "undefined" value errors in Firestore
+    const dataToSave = { ...employee };
+    if (dataToSave.employee_image === undefined) {
+      delete dataToSave.employee_image;
+    }
+    await setDoc(doc(db, "users", userId, "employees", employee.employee_id), dataToSave);
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }
@@ -125,7 +130,15 @@ export async function deleteUserEmployee(userId: string, employeeId: string): Pr
 export async function saveUserAttendance(userId: string, attendance: Attendance): Promise<void> {
   const path = `users/${userId}/attendance/${attendance.attendance_id}`;
   try {
-    await setDoc(doc(db, "users", userId, "attendance", attendance.attendance_id), attendance);
+    // Sanitize to avoid "undefined" value errors in Firestore
+    const dataToSave = { ...attendance };
+    if (dataToSave.overtime_earnings === undefined) {
+      delete dataToSave.overtime_earnings;
+    }
+    if (dataToSave.updated_at === undefined) {
+      delete dataToSave.updated_at;
+    }
+    await setDoc(doc(db, "users", userId, "attendance", attendance.attendance_id), dataToSave);
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }

@@ -63,24 +63,26 @@ export default function EmployeeProfileView({
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        {/* Left Side: Avatar and Info Card */}
-        <div className={`col-span-1 lg:col-span-4 rounded-3xl p-6 border flex flex-col justify-between shadow-2xl ${
+        {/* Left Side: Avatar and Info Card - Optimized to split horizontally into 2 containers on mobile/tablet */}
+        <div className={`col-span-1 lg:col-span-4 rounded-3xl p-5 sm:p-6 border shadow-2xl ${
           darkMode ? "bg-white/5 border-white/10 backdrop-blur-md" : "bg-white border-warm-border shadow-[0_8px_30px_rgba(44,37,32,0.03)]"
         }`}>
-          <div className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-5 sm:gap-6 items-stretch">
             
-            {/* Avatar block */}
-            <div className="flex flex-col items-center text-center">
+            {/* Left Container: Avatar Block */}
+            <div className={`flex flex-col items-center justify-center text-center p-4 sm:p-6 rounded-2xl border ${
+              darkMode ? "bg-white/2 border-white/5" : "bg-slate-50/50 border-slate-100"
+            }`}>
               <div className="relative">
                 {employee.employee_image ? (
                   <img 
                     src={employee.employee_image} 
                     referrerPolicy="no-referrer"
-                    className="w-20 h-20 rounded-2xl object-cover border-2 border-indigo-200/50 shadow-lg"
+                    className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover border-2 border-indigo-200/50 shadow-lg"
                     alt="Avatar" 
                   />
                 ) : (
-                  <div className={`w-20 h-20 rounded-2xl flex items-center justify-center text-white text-3xl font-bold font-display shadow-lg ${employee.avatar_color}`}>
+                  <div className={`w-20 h-20 sm:w-24 sm:h-24 rounded-2xl flex items-center justify-center text-white text-3xl sm:text-4xl font-bold font-display shadow-lg ${employee.avatar_color}`}>
                     {employee.employee_name.split(" ").map(n => n[0]).join("")}
                   </div>
                 )}
@@ -88,72 +90,82 @@ export default function EmployeeProfileView({
                   Active
                 </div>
               </div>
-              <h3 className={`text-xl font-bold font-display mt-4 leading-none ${darkMode ? "text-white" : "text-slate-800"}`}>
+              <h3 className={`text-lg sm:text-xl font-bold font-display mt-4 leading-none ${darkMode ? "text-white" : "text-slate-800"}`}>
                 {employee.employee_name}
               </h3>
               <p className="text-xs font-mono text-brand-blue mt-1.5">{employee.employee_id}</p>
             </div>
 
-            {/* Core details list */}
-            <div className="space-y-3.5 border-t border-gray-500/10 pt-5 text-sm">
-              <div className="flex justify-between items-center">
-                <span className={`text-xs flex items-center gap-1.5 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-                  <MapPin className="w-3.5 h-3.5" /> Address:
-                </span>
-                <span className={`font-medium ${darkMode ? "text-white" : "text-slate-800"}`}>{employee.address}</span>
-              </div>
-
-              <div className="flex justify-between items-center">
-                <span className={`text-xs flex items-center gap-1.5 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-                  <Calendar className="w-3.5 h-3.5" /> Enrolled:
-                </span>
-                <span className={`font-mono text-xs ${darkMode ? "text-white" : "text-slate-800"}`}>{employee.joining_date}</span>
-              </div>
-
-              <div className="flex justify-between items-center">
-                <span className={`text-xs flex items-center gap-1.5 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-                  <IndianRupee className="w-3.5 h-3.5" /> Base Pay:
-                </span>
-                <span className="font-bold text-brand-indigo font-mono">{formatCurrency(employee.monthly_salary)}/mo</span>
-              </div>
-
-              <div className="flex justify-between items-start">
-                <span className={`text-xs flex items-center gap-1.5 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
-                  <Clock className="w-3.5 h-3.5" /> Overtime Matrix:
-                </span>
-                <div className="text-right">
-                  <span className={`font-semibold font-mono text-xs ${darkMode ? "text-white" : "text-slate-800"}`}>
-                    {employee.overtime_hours_rule} Hrs = {formatCurrency(employee.overtime_amount_rule)}
+            {/* Right Container: Details, Balance & Actions */}
+            <div className="flex flex-col justify-between space-y-4">
+              
+              {/* Core details list */}
+              <div className="space-y-3.5 text-sm">
+                <div className="flex justify-between items-center gap-2">
+                  <span className={`text-xs flex items-center gap-1.5 shrink-0 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                    <MapPin className="w-3.5 h-3.5" /> Address:
+                  </span>
+                  <span className={`font-medium text-right text-xs sm:text-sm truncate max-w-[150px] sm:max-w-none ${darkMode ? "text-white" : "text-slate-800"}`} title={employee.address}>
+                    {employee.address}
                   </span>
                 </div>
+
+                <div className="flex justify-between items-center">
+                  <span className={`text-xs flex items-center gap-1.5 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                    <Calendar className="w-3.5 h-3.5" /> Enrolled:
+                  </span>
+                  <span className={`font-mono text-xs ${darkMode ? "text-white" : "text-slate-800"}`}>{employee.joining_date}</span>
+                </div>
+
+                <div className="flex justify-between items-center">
+                  <span className={`text-xs flex items-center gap-1.5 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                    <IndianRupee className="w-3.5 h-3.5" /> Base Pay:
+                  </span>
+                  <span className="font-bold text-brand-indigo font-mono text-xs sm:text-sm">{formatCurrency(employee.monthly_salary)}/mo</span>
+                </div>
+
+                <div className="flex justify-between items-start">
+                  <span className={`text-xs flex items-center gap-1.5 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                    <Clock className="w-3.5 h-3.5" /> Overtime Matrix:
+                  </span>
+                  <div className="text-right">
+                    <span className={`font-semibold font-mono text-xs ${darkMode ? "text-white" : "text-slate-800"}`}>
+                      {employee.overtime_hours_rule} Hrs = {formatCurrency(employee.overtime_amount_rule)}
+                    </span>
+                  </div>
+                </div>
               </div>
+
+              {/* Balance & Edit button */}
+              <div className="space-y-3 pt-2 sm:pt-0">
+                <div className={`p-3 rounded-xl text-center border ${
+                  darkMode ? "bg-white/5 border-white/5" : "bg-indigo-50 border-indigo-100"
+                }`}>
+                  <p className={`text-[9px] uppercase font-bold tracking-wider ${darkMode ? "text-gray-400" : "text-indigo-600"}`}>
+                    Current Earned Balance
+                  </p>
+                  <p className="text-2xl sm:text-3xl font-extrabold font-mono text-gradient bg-gradient-to-r from-brand-indigo to-brand-blue mt-0.5">
+                    {formatCurrency(currentEarnedSalary)}
+                  </p>
+                  <span className="text-[8px] text-gray-500 block mt-0.5">Base + Overtime Salary</span>
+                </div>
+
+                <button
+                  onClick={() => onEditEmployee(employee)}
+                  className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-xs transition-all ${
+                    darkMode
+                      ? "bg-[#6d28ff]/20 text-[#c084fc] hover:bg-[#6d28ff]/30 border border-[#8b5cf6]/30"
+                      : "bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200"
+                  }`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
+                  Edit Profile Details
+                </button>
+              </div>
+
             </div>
 
           </div>
-
-          <div className={`mt-6 p-4 rounded-xl text-center border ${
-            darkMode ? "bg-white/5 border-white/5" : "bg-indigo-50 border-indigo-100"
-          }`}>
-            <p className={`text-[10px] uppercase font-bold tracking-wider ${darkMode ? "text-gray-400" : "text-indigo-600"}`}>
-              Current Earned Balance
-            </p>
-            <p className="text-3xl font-extrabold font-mono text-gradient bg-gradient-to-r from-brand-indigo to-brand-blue mt-1">
-              {formatCurrency(currentEarnedSalary)}
-            </p>
-            <span className="text-[9px] text-gray-500 block mt-1">Base + Overtime Salary</span>
-          </div>
-
-          <button
-            onClick={() => onEditEmployee(employee)}
-            className={`w-full mt-4 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-xs transition-all ${
-              darkMode
-                ? "bg-[#6d28ff]/20 text-[#c084fc] hover:bg-[#6d28ff]/30 border border-[#8b5cf6]/30"
-                : "bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200"
-            }`}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>
-            Edit Profile Details
-          </button>
         </div>
 
         {/* Right Side: Analytical Grids and Personal Logs */}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Clock, Shield, Sun, Moon, Calendar, UserCheck, LogIn, User as UserIcon } from "lucide-react";
 import { User } from "firebase/auth";
-import logo from "../assets/logo.png";
+const logo = "https://cdn.phototourl.com/free/2026-07-17-012f8326-edf9-4a6e-a714-050ed57bbe19.png";
 
 interface HeaderProps {
   darkMode: boolean;
@@ -62,7 +62,7 @@ export default function Header({
               <h1 id="app-title" className={`text-2xl font-black tracking-tight leading-none ${
                 darkMode ? "text-white font-sans" : "text-stone-950 font-sans"
               }`}>
-                ATTENDIX
+                ATTENDEXA
               </h1>
               <span className={`text-[9px] uppercase font-mono font-black px-2 py-1 rounded-full leading-none tracking-wider ${
                 darkMode
