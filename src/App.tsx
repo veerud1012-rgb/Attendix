@@ -5,10 +5,11 @@ import {
   Trash2, RefreshCw, Eye, BookOpen, HelpCircle, Activity,
   Info, CheckCircle, Sliders, CalendarClock,
   LayoutGrid, Grid, Briefcase, LineChart, FileText, Settings, LogOut, FileCheck,
-  CalendarDays, Edit, Check, X, User as UserIcon, Mail, Lock
+  CalendarDays, Edit, Check, X, User as UserIcon, Mail, Lock, UserPlus
 } from "lucide-react";
 
 import { dbStore, processAttendance, formatCurrency } from "./dbStore";
+import { AttendanceRecordCard } from "./components/AttendanceRecordCard";
 import { Employee, Attendance, AttendanceWithEmployee, ActivityLog } from "./types";
 import { onAuthStateChanged, User, signOut } from "firebase/auth";
 import { auth } from "./firebase";
@@ -840,7 +841,7 @@ export default function App() {
                       }`}
                       style={{ fontSize: '13px' }}
                     >
-                      <Plus className={`w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.5px] ${darkMode ? "text-white" : "text-[#2f00ff]"}`} />
+                      <UserPlus className={`w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.5px] ${darkMode ? "text-white" : "text-[#2f00ff]"}`} />
                       Add Employee
                     </button>
 
@@ -1073,7 +1074,24 @@ export default function App() {
                         </div>
                       )}
 
-                      <div className="overflow-x-auto">
+                      <div className="block sm:hidden">
+                        {filteredAttendance.map((rec) => (
+                          <AttendanceRecordCard
+                            key={rec.attendance_id}
+                            rec={rec}
+                            employees={employees}
+                            darkMode={darkMode}
+                            handleQuickAttendance={handleQuickAttendance}
+                            handleInlineOvertimeUpdate={handleInlineOvertimeUpdate}
+                            onViewProfile={(empId) => {
+                               const emp = employees.find((e) => e.employee_id === empId);
+                               if (emp) setSelectedEmployeeProfile(emp);
+                            }}
+                          />
+                        ))}
+                      </div>
+
+                      <div className="overflow-x-auto hidden sm:block">
                         <table className="w-full text-left border-collapse">
                           <thead>
                             <tr className={`text-[10px] uppercase tracking-wider font-extrabold font-mono whitespace-nowrap ${
