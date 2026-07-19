@@ -2,6 +2,7 @@ import React from "react";
 import { Search, Trash2, Edit } from "lucide-react";
 import { Employee, AttendanceWithEmployee } from "../types";
 import { formatCurrency } from "../dbStore";
+import { AttendanceRecordCard } from "./AttendanceRecordCard";
 
 interface Props {
   darkMode: boolean;
@@ -71,7 +72,71 @@ export default function AttendanceHistory({
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        {/* Mobile-responsive Card View */}
+        <div className="block sm:hidden p-4 space-y-4">
+          {filteredAttendance.length === 0 ? (
+            <div className="py-12 text-center text-xs text-slate-500 font-mono">
+              No historical attendance logs found.
+            </div>
+          ) : (
+            filteredAttendance.map((rec) => (
+              <AttendanceRecordCard
+                key={rec.attendance_id}
+                rec={rec}
+                employees={employees}
+                darkMode={darkMode}
+                handleQuickAttendance={handleQuickAttendance}
+                handleInlineOvertimeUpdate={handleInlineOvertimeUpdate}
+                onViewProfile={(empId) => {
+                  const emp = employees.find((e) => e.employee_id === empId);
+                  if (emp) setSelectedEmployeeProfile(emp);
+                }}
+              />
+            ))
+          )}
+
+          {filteredAttendance.length > 0 && (
+            <div className={`p-4 rounded-2xl border mb-6 transition-all duration-300 ${
+              darkMode 
+                ? "bg-slate-950/70 border-[#8b5cf6]/20 shadow-[0_4px_20px_rgba(0,0,0,0.3)]" 
+                : "bg-indigo-50/50 border-indigo-100 shadow-[0_4px_12px_rgba(99,102,241,0.03)]"
+            }`}>
+              <h4 className={`text-[10px] font-extrabold uppercase tracking-widest mb-3.5 flex items-center gap-1.5 ${
+                darkMode ? "text-indigo-400" : "text-indigo-800"
+              }`}>
+                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
+                Cumulative Summary ({filteredAttendance.length} records)
+              </h4>
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <span className="text-slate-500 block text-[9px] uppercase tracking-wider font-semibold">Total Overtime</span>
+                  <span className={`font-mono font-bold ${darkMode ? "text-[#c084fc]" : "text-purple-700"}`}>
+                    {filteredAttendance.reduce((sum, r) => sum + (r.overtime_hours || 0), 0)} Hrs
+                  </span>
+                </div>
+                <div>
+                  <span className="text-slate-500 block text-[9px] uppercase tracking-wider font-semibold">OT Earnings</span>
+                  <span className={`font-mono font-bold ${darkMode ? "text-emerald-400" : "text-emerald-700"}`}>
+                    {formatCurrency(filteredAttendance.reduce((sum, r) => sum + (r.overtime_earnings || 0), 0))}
+                  </span>
+                </div>
+                <div className="col-span-2 pt-2.5 border-t border-dashed border-slate-200/60 dark:border-white/10 flex justify-between items-center">
+                  <span className="text-slate-500 text-[10px] uppercase tracking-wider font-extrabold">Cumulative Sum</span>
+                  <span className={`font-mono font-black text-sm ${darkMode ? "text-[#2bdfff]" : "text-indigo-600"}`}>
+                    {formatCurrency(filteredAttendance.reduce((sum, r) => {
+                      const base = r.status === "Present" ? (r.daily_salary || 0) : 0;
+                      const ot = r.overtime_earnings || 0;
+                      return sum + base + ot;
+                    }, 0))}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Desktop Table View */}
+        <div className="overflow-x-auto hidden sm:block">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className={`text-[10px] uppercase tracking-wider font-extrabold font-mono whitespace-nowrap ${
@@ -262,6 +327,43 @@ export default function AttendanceHistory({
                 })
               )}
             </tbody>
+            {filteredAttendance.length > 0 && (
+              <tfoot className={`border-t-2 font-mono text-xs font-bold ${
+                darkMode ? "bg-[#161f36]/40 border-white/10 text-[#8e97af]" : "bg-slate-50 border-slate-200 text-slate-700"
+              }`}>
+                <tr>
+                  <td colSpan={5} className="py-3 px-4 text-left font-sans font-extrabold uppercase tracking-wider text-[11px]">
+                    Total Summary ({filteredAttendance.length} records)
+                  </td>
+                  <td className="py-3 px-3">
+                    <div className="text-[9px] text-slate-500 uppercase tracking-widest leading-none mb-1">Total Overtime</div>
+                    <div className={`font-black ${darkMode ? "text-[#c084fc]" : "text-purple-700"}`}>
+                      {filteredAttendance.reduce((sum, r) => sum + (r.overtime_hours || 0), 0)} Hrs = {formatCurrency(filteredAttendance.reduce((sum, r) => sum + (r.overtime_earnings || 0), 0))}
+                    </div>
+                  </td>
+                  <td className="py-3 px-3 text-center">
+                    <div className="text-[9px] text-slate-500 uppercase tracking-widest leading-none mb-1">Cumulative Sum</div>
+                    <div className={`font-black text-sm ${darkMode ? "text-[#2bdfff]" : "text-indigo-600"}`}>
+                      {formatCurrency(filteredAttendance.reduce((sum, r) => {
+                        const base = r.status === "Present" ? (r.daily_salary || 0) : 0;
+                        const ot = r.overtime_earnings || 0;
+                        return sum + base + ot;
+                      }, 0))}
+                    </div>
+                  </td>
+                  <td colSpan={3} className="py-3 px-3 text-right">
+                    <span className="text-[10px] text-slate-500">Filtered Payroll: </span>
+                    <strong className={darkMode ? "text-white" : "text-stone-900"}>
+                      {formatCurrency(filteredAttendance.reduce((sum, r) => {
+                        const base = r.status === "Present" ? (r.daily_salary || 0) : 0;
+                        const ot = r.overtime_earnings || 0;
+                        return sum + base + ot;
+                      }, 0))}
+                    </strong>
+                  </td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
       </div>

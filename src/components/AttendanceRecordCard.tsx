@@ -71,6 +71,11 @@ export const AttendanceRecordCard: React.FC<AttendanceRecordCardProps> = ({
         <div>
           <span className="text-slate-500 font-semibold block text-[10px] uppercase tracking-wider">Date</span> 
           <span className={`font-medium ${darkMode ? "text-slate-200" : "text-slate-700"}`}>{rec.date.split('-').reverse().join('-')}</span>
+          {(rec.updated_at || rec.created_at) && (
+            <span className={`block text-[9px] mt-0.5 font-mono leading-none ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+              ⏰ {new Date(rec.updated_at || rec.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          )}
         </div>
         <div>
           <span className="text-slate-500 font-semibold block text-[10px] uppercase tracking-wider">Cumulative</span> 

@@ -1089,6 +1089,45 @@ export default function App() {
                             }}
                           />
                         ))}
+
+                        {filteredAttendance.length > 0 && (
+                          <div className={`p-4 rounded-2xl border mb-6 transition-all duration-300 ${
+                            darkMode 
+                              ? "bg-slate-950/70 border-[#8b5cf6]/20 shadow-[0_4px_20px_rgba(0,0,0,0.3)]" 
+                              : "bg-indigo-50/50 border-indigo-100 shadow-[0_4px_12px_rgba(99,102,241,0.03)]"
+                          }`}>
+                            <h4 className={`text-[10px] font-extrabold uppercase tracking-widest mb-3.5 flex items-center gap-1.5 ${
+                              darkMode ? "text-indigo-400" : "text-indigo-800"
+                            }`}>
+                              <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
+                              Cumulative Summary ({filteredAttendance.length} check-ins)
+                            </h4>
+                            <div className="grid grid-cols-2 gap-3 text-xs">
+                              <div>
+                                <span className="text-slate-500 block text-[9px] uppercase tracking-wider font-semibold">Total Overtime</span>
+                                <span className={`font-mono font-bold ${darkMode ? "text-[#c084fc]" : "text-purple-700"}`}>
+                                  {filteredAttendance.reduce((sum, r) => sum + (r.overtime_hours || 0), 0)} Hrs
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-slate-500 block text-[9px] uppercase tracking-wider font-semibold">OT Earnings</span>
+                                <span className={`font-mono font-bold ${darkMode ? "text-emerald-400" : "text-emerald-700"}`}>
+                                  {formatCurrency(filteredAttendance.reduce((sum, r) => sum + (r.overtime_earnings || 0), 0))}
+                                </span>
+                              </div>
+                              <div className="col-span-2 pt-2.5 border-t border-dashed border-slate-200/60 dark:border-white/10 flex justify-between items-center">
+                                <span className="text-slate-500 text-[10px] uppercase tracking-wider font-extrabold">Cumulative Sum</span>
+                                <span className={`font-mono font-black text-sm ${darkMode ? "text-[#2bdfff]" : "text-indigo-600"}`}>
+                                  {formatCurrency(filteredAttendance.reduce((sum, r) => {
+                                    const base = r.status === "Present" ? (r.daily_salary || 0) : 0;
+                                    const ot = r.overtime_earnings || 0;
+                                    return sum + base + ot;
+                                  }, 0))}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       <div className="overflow-x-auto hidden sm:block">
@@ -1245,7 +1284,7 @@ export default function App() {
                                     darkMode 
                                       ? "text-[#c084fc]" 
                                       : "text-purple-700"
-                                  }`}>
+                                  }`} style={{ borderColor: '#000000', color: '#000000' }}>
                                     <div className="flex items-center gap-1.5">
                                       <input 
                                         type="number"
@@ -1348,6 +1387,43 @@ export default function App() {
                             })
                           )}
                           </tbody>
+                          {filteredAttendance.length > 0 && (
+                            <tfoot className={`border-t font-mono text-xs font-bold ${
+                              darkMode ? "bg-[#161f36]/40 border-white/10 text-[#8e97af]" : "bg-slate-50 border-slate-200 text-slate-700"
+                            }`}>
+                              <tr>
+                                <td colSpan={6} className="py-3 px-4 text-left font-sans font-extrabold uppercase tracking-wider text-[11px]">
+                                  Total Summary ({filteredAttendance.length} check-ins)
+                                </td>
+                                <td className="py-3 px-3">
+                                  <div className="text-[9px] text-slate-500 uppercase tracking-widest leading-none mb-1">Total Overtime</div>
+                                  <div className={`font-black ${darkMode ? "text-[#c084fc]" : "text-purple-700"}`}>
+                                    {filteredAttendance.reduce((sum, r) => sum + (r.overtime_hours || 0), 0)} Hrs = {formatCurrency(filteredAttendance.reduce((sum, r) => sum + (r.overtime_earnings || 0), 0))}
+                                  </div>
+                                </td>
+                                <td className="py-3 px-3 text-center">
+                                  <div className="text-[9px] text-slate-500 uppercase tracking-widest leading-none mb-1">Cumulative Sum</div>
+                                  <div className={`font-black text-sm ${darkMode ? "text-[#2bdfff]" : "text-indigo-600"}`}>
+                                    {formatCurrency(filteredAttendance.reduce((sum, r) => {
+                                      const base = r.status === "Present" ? (r.daily_salary || 0) : 0;
+                                      const ot = r.overtime_earnings || 0;
+                                      return sum + base + ot;
+                                    }, 0))}
+                                  </div>
+                                </td>
+                                <td colSpan={3} className="py-3 px-3 text-right">
+                                  <span className="text-[10px] text-slate-500">Filtered Payroll: </span>
+                                  <strong className={darkMode ? "text-white" : "text-stone-900"}>
+                                    {formatCurrency(filteredAttendance.reduce((sum, r) => {
+                                      const base = r.status === "Present" ? (r.daily_salary || 0) : 0;
+                                      const ot = r.overtime_earnings || 0;
+                                      return sum + base + ot;
+                                    }, 0))}
+                                  </strong>
+                                </td>
+                              </tr>
+                            </tfoot>
+                          )}
                         </table>
                       </div>
                     </div>
