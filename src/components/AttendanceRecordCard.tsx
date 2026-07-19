@@ -8,6 +8,7 @@ interface AttendanceRecordCardProps {
   darkMode: boolean;
   handleQuickAttendance: (id: string, status: "Present" | "Absent") => void;
   handleInlineOvertimeUpdate: (id: string, hours: number, earnings?: number) => void;
+  handleInlineNarrationUpdate: (id: string, narration: string) => void;
   onViewProfile: (empId: string) => void;
 }
 
@@ -17,6 +18,7 @@ export const AttendanceRecordCard: React.FC<AttendanceRecordCardProps> = ({
   darkMode, 
   handleQuickAttendance, 
   handleInlineOvertimeUpdate, 
+  handleInlineNarrationUpdate,
   onViewProfile 
 }) => {
   const emp = employees.find((e) => e.employee_id === rec.employee_id);
@@ -108,9 +110,19 @@ export const AttendanceRecordCard: React.FC<AttendanceRecordCardProps> = ({
       </div>
 
       <div className="border-t border-dashed border-slate-200/80 dark:border-white/10 pt-3">
-        <div className="text-xs mb-3 flex items-center gap-1.5">
-          <span className="text-slate-500 font-semibold">Narration:</span> 
-          <span className={`italic ${darkMode ? "text-slate-300" : "text-slate-600"}`}>{rec.narration || "Regular Shift"}</span>
+        <div className="text-xs mb-3 flex items-center gap-2 w-full">
+          <span className="text-slate-500 font-semibold whitespace-nowrap">Narration:</span> 
+          <input 
+            type="text"
+            placeholder="Regular Shift"
+            value={rec.narration || ""}
+            onChange={(e) => handleInlineNarrationUpdate(rec.attendance_id, e.target.value)}
+            className={`flex-1 min-w-0 px-2 py-1 italic rounded-md text-xs border shadow-sm outline-none transition-all ${
+              darkMode 
+                ? "bg-[#1e293b] border-slate-700 text-slate-300 focus:border-[#2bdfff] focus:text-white placeholder-slate-600" 
+                : "bg-white border-slate-200 text-slate-600 focus:border-indigo-500 focus:text-slate-900 placeholder-slate-400"
+            }`}
+          />
         </div>
         <div className="flex gap-2.5">
           {/* Present Button with dynamic design and press animation */}

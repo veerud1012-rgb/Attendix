@@ -16,6 +16,7 @@ interface Props {
   setIsAttendanceModalOpen: (isOpen: boolean) => void;
   handleDeleteAttendance: (attId: string) => void;
   handleInlineOvertimeUpdate: (attId: string, hours: number, earnings?: number) => void;
+  handleInlineNarrationUpdate: (attId: string, narration: string) => void;
 }
 
 export default function AttendanceHistory({
@@ -29,7 +30,8 @@ export default function AttendanceHistory({
   setEditingAttendanceRecord,
   setIsAttendanceModalOpen,
   handleDeleteAttendance,
-  handleInlineOvertimeUpdate
+  handleInlineOvertimeUpdate,
+  handleInlineNarrationUpdate
 }: Props) {
   return (
     <div className="space-y-6 animate-fade-in">
@@ -87,6 +89,7 @@ export default function AttendanceHistory({
                 darkMode={darkMode}
                 handleQuickAttendance={handleQuickAttendance}
                 handleInlineOvertimeUpdate={handleInlineOvertimeUpdate}
+                handleInlineNarrationUpdate={handleInlineNarrationUpdate}
                 onViewProfile={(empId) => {
                   const emp = employees.find((e) => e.employee_id === empId);
                   if (emp) setSelectedEmployeeProfile(emp);
@@ -272,8 +275,18 @@ export default function AttendanceHistory({
                     <td className={`py-3 px-3 font-mono font-black text-center whitespace-nowrap ${darkMode ? "text-white" : "text-stone-900"}`} style={{ fontSize: '14px' }}>
                       {formatCurrency(rec.cumulative_salary)}
                     </td>
-                    <td className={`py-3 px-3 italic max-w-[120px] truncate ${darkMode ? "text-[#8e97af]" : "text-slate-600"}`} style={{ fontSize: '13px' }} title={rec.narration || "Regular Shift"}>
-                      {rec.narration || "Regular Shift"}
+                    <td className="py-3 px-3">
+                      <input 
+                        type="text"
+                        placeholder="Regular Shift"
+                        value={rec.narration || ""}
+                        onChange={(e) => handleInlineNarrationUpdate(rec.attendance_id, e.target.value)}
+                        className={`w-full max-w-[150px] px-2 py-1 italic rounded-md text-xs border shadow-sm outline-none transition-all ${
+                          darkMode 
+                            ? "bg-[#1e293b] border-slate-700 text-[#8e97af] focus:border-[#2bdfff] focus:text-white placeholder-slate-600" 
+                            : "bg-white border-slate-200 text-slate-600 focus:border-indigo-500 focus:text-slate-900 placeholder-slate-400"
+                        }`}
+                      />
                     </td>
                     <td className="py-3 px-3 text-center whitespace-nowrap">
                       <div className="flex justify-center items-center gap-1.5">

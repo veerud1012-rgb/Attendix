@@ -459,6 +459,32 @@ export default function App() {
     }
   };
 
+  const handleInlineNarrationUpdate = async (attId: string, narration: string) => {
+    const rec = attendance.find(a => a.attendance_id === attId);
+    if (!rec) return;
+
+    const updatedRecord: Attendance = {
+      ...rec,
+      narration: narration,
+      updated_at: new Date().toISOString(),
+    };
+
+    const updatedAttendance = attendance.map((att) =>
+      att.attendance_id === attId ? updatedRecord : att
+    );
+    setAttendance(updatedAttendance);
+
+    if (currentUser) {
+      try {
+        await saveUserAttendance(currentUser.uid, updatedRecord);
+      } catch (e) {
+        console.error("Failed to update inline narration in Firestore", e);
+      }
+    } else {
+      dbStore.saveAttendance(updatedAttendance);
+    }
+  };
+
   // Delete employee profile (removes profile & all related attendance entries)
   const handleDeleteEmployee = async (empId: string) => {
     const emp = employees.find((e) => e.employee_id === empId);
@@ -1083,6 +1109,7 @@ export default function App() {
                             darkMode={darkMode}
                             handleQuickAttendance={handleQuickAttendance}
                             handleInlineOvertimeUpdate={handleInlineOvertimeUpdate}
+                            handleInlineNarrationUpdate={handleInlineNarrationUpdate}
                             onViewProfile={(empId) => {
                                const emp = employees.find((e) => e.employee_id === empId);
                                if (emp) setSelectedEmployeeProfile(emp);
@@ -1321,8 +1348,18 @@ export default function App() {
                                   >
                                     {formatCurrency(rec.cumulative_salary)}
                                   </td>
-                                  <td className={`py-3 px-3 italic max-w-[120px] truncate ${darkMode ? "text-[#8e97af]" : "text-slate-600"}`} style={{ fontSize: '13px' }} title={rec.narration || "Regular Shift"}>
-                                    {rec.narration || "Regular Shift"}
+                                  <td className="py-3 px-3">
+                                    <input 
+                                      type="text"
+                                      placeholder="Regular Shift"
+                                      value={rec.narration || ""}
+                                      onChange={(e) => handleInlineNarrationUpdate(rec.attendance_id, e.target.value)}
+                                      className={`w-full max-w-[150px] px-2 py-1 italic rounded-md text-xs border shadow-sm outline-none transition-all ${
+                                        darkMode 
+                                          ? "bg-[#1e293b] border-slate-700 text-[#8e97af] focus:border-[#2bdfff] focus:text-white placeholder-slate-600" 
+                                          : "bg-white border-slate-200 text-slate-600 focus:border-indigo-500 focus:text-slate-900 placeholder-slate-400"
+                                      }`}
+                                    />
                                   </td>
                                   <td className="py-3 px-3 text-center whitespace-nowrap">
                                     <div className="flex justify-center items-center gap-1.5">
@@ -1657,6 +1694,7 @@ export default function App() {
                 setIsAttendanceModalOpen={setIsAttendanceModalOpen}
                 handleDeleteAttendance={handleDeleteAttendance}
                 handleInlineOvertimeUpdate={handleInlineOvertimeUpdate}
+                handleInlineNarrationUpdate={handleInlineNarrationUpdate}
               />
               </motion.div>
             )}
